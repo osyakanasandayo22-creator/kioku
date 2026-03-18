@@ -3169,6 +3169,19 @@
   applyAccentFromMeta();
   renderGameGrid("");
 
+  // PWA: register Service Worker (requires https/localhost)
+  (() => {
+    if (!("serviceWorker" in navigator)) return;
+    if (location.protocol !== "https:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      return;
+    }
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("./sw.js").catch(() => {
+        // ignore
+      });
+    });
+  })();
+
   // タイピング速度ビジュアライザー（入力速度に応じて上部バーが伸縮）
   (() => {
     if (!typingViz) return;

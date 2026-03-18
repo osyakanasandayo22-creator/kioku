@@ -1,0 +1,20 @@
+{
+  "name": "記憶力向上アプリ",
+  "short_name": "記憶力",
+  "description": "白基調・余白多めの記憶トレーニングミニゲーム集。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
+
