@@ -199,15 +199,12 @@ svg {
   line-height: inherit;
   cursor: pointer;
   color: rgba(215, 205, 195, 0.78);
-  text-decoration: underline;
-  text-decoration-color: rgba(215, 205, 195, 0.35);
-  text-underline-offset: 2px;
-  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  text-decoration: none;
+  transition: color 0.15s ease;
 }
 
 .siteLegalTag:hover {
   color: rgba(250, 245, 238, 0.95);
-  text-decoration-color: rgba(250, 245, 238, 0.55);
 }
 
 .siteLegalTag:focus-visible {
@@ -242,13 +239,11 @@ body.descAmbientOn .siteLegalFooter {
 
 body.descAmbientOn .siteLegalTag {
   color: rgba(255, 254, 250, 0.94);
-  text-decoration-color: rgba(255, 255, 255, 0.42);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.65);
 }
 
 body.descAmbientOn .siteLegalTag:hover {
   color: #fff;
-  text-decoration-color: rgba(255, 255, 255, 0.65);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.7);
 }
 
@@ -385,7 +380,8 @@ body.descAmbientOn .siteLogoImg--dark {
   justify-content: flex-start;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
+  /* contain だと入力中の縦スクロールが親に伝わりにくい端末がある */
+  overscroll-behavior-y: auto;
   padding-bottom: 16px;
   scrollbar-width: none;
 }
@@ -871,6 +867,13 @@ body.descAmbientOn .resultLoading {
   color: rgba(90, 78, 65, 0.55);
 }
 
+/* PC: 縦リサイズ用の裾（グリップ）を出さない */
+@media (min-width: 768px) {
+  .gameArea--descHud .answerTextarea {
+    resize: none;
+  }
+}
+
 /* --- 単語カード --- */
 .bigNumber {
   font-size: clamp(28px, 8vw, 40px);
@@ -1013,7 +1016,9 @@ body.descAmbientOn .resultLoading {
   color: var(--text);
   box-shadow: inset 0 2px 6px rgba(45, 40, 36, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  touch-action: manipulation;
+  /* manipulation は親の縦スクロールを阻害しがち（入力中に画面が動かせない）→ 既定に近い挙動へ */
+  touch-action: auto;
+  overscroll-behavior: auto;
 }
 
 .answerTextarea::placeholder {
@@ -1067,7 +1072,8 @@ body.descAmbientOn .resultLoading {
   outline: none;
   box-shadow: inset 0 2px 6px rgba(45, 40, 36, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
-  touch-action: manipulation;
+  touch-action: auto;
+  overscroll-behavior: auto;
 }
 
 .input::placeholder {
