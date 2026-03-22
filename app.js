@@ -334,6 +334,8 @@
 
   /** フッタータグ → 採点詳細と同系のオーバーレイで表示 */
   function initLegalFooter() {
+    const CONTACT_EMAIL = "osyakanasandayo22@gmail.com";
+
     const LEGAL_PAGES = {
       terms: {
         title: "利用規約ページ",
@@ -357,7 +359,7 @@
             "出題・参照のため、Wikipedia 等の公開情報を取得します。取得内容は各提供元の方針に従います。",
             "採点のために、入力されたテキストがサーバーに送信され、外部の AI サービスへ渡される場合があります。送信データは採点目的以外には利用しません。",
             "アクセス解析ツールを導入する場合は、本ポリシーを改定して告知します。",
-            "お問い合わせは、別途掲載する連絡先までご連絡ください。",
+            `お問い合わせは、${CONTACT_EMAIL} までメールにてご連絡ください。`,
           ];
           for (const t of lines) body.appendChild(h("p", { class: "legalOverlayPara", text: t }));
         },
@@ -368,7 +370,22 @@
           body.appendChild(
             h("p", {
               class: "legalOverlayPara",
-              text: "当サービスに関するご質問・不具合のご連絡は、メールにて受け付ける予定です。宛先アドレスは準備が整い次第、本ページに記載します。公開後は、ここに記載の連絡先へご連絡ください。",
+              text: "当サービスに関するご質問・不具合のご連絡は、下記メールアドレスまでお願いいたします。",
+            })
+          );
+          const mailP = h("p", { class: "legalOverlayPara" });
+          mailP.appendChild(
+            h("a", {
+              class: "resultDetailWikiLink",
+              href: `mailto:${CONTACT_EMAIL}`,
+              text: CONTACT_EMAIL,
+            })
+          );
+          body.appendChild(mailP);
+          body.appendChild(
+            h("p", {
+              class: "legalOverlayPara",
+              text: "返信までにお時間をいただく場合があります。",
             })
           );
         },
@@ -378,6 +395,16 @@
         build: (body) => {
           body.appendChild(h("p", { class: "legalOverlayPara", text: "サイト名：点灯Wiki" }));
           body.appendChild(h("p", { class: "legalOverlayPara", text: "運営者：obake（個人）" }));
+          const mailP = h("p", { class: "legalOverlayPara" });
+          mailP.appendChild(document.createTextNode("連絡先（お問い合わせ共通）："));
+          mailP.appendChild(
+            h("a", {
+              class: "resultDetailWikiLink",
+              href: `mailto:${CONTACT_EMAIL}`,
+              text: CONTACT_EMAIL,
+            })
+          );
+          body.appendChild(mailP);
           body.appendChild(
             h("p", {
               class: "legalOverlayPara",
