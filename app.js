@@ -351,19 +351,20 @@
    * iOS Safari: speechSynthesis.speak() はユーザー操作の同期コールスタック内か、
    * ジェスチャーで開始した utterance の onend コールバック内でしか許可されない。
    *
-   * 戦略（音声モード時のみ）:
-   *  1.「開始」タップの同期コールスタックで「読み込み中」を speak する
-   *    → これが iOS の speechSynthesis アンロック＆チェーン起点になる
-   *  2. 同時に fetch を走らせる
-   *  3.「読み込み中」の onend で単語がまだ来ていなければ「お待ちください」を speak
-   *  4. 単語が準備できたら speechChainReady にコールバックをセット
-   *  5. 次の onend でそのコールバック（= 本物の読み上げ開始）を実行
-   *
-   * 全ての speak() が onend チェーンの中で呼ばれるため iOS でも途切れない。
+   * 「開始」タップの同期コールスタックで無音に近い短い発話を speak し、
+   * 以後 onend チェーンを維持して fetch の非同期ギャップを超える。
    */
   let speechChainReady = null;
   let speechChainRunning = false;
   let speechChainTimer = null;
+
+  function makeSilentUtterance() {
+    const u = new SpeechSynthesisUtterance("\u3002");
+    u.lang = "ja-JP";
+    u.volume = 0.01;
+    u.rate = 1;
+    return u;
+  }
 
   function pumpSpeechChain() {
     if (speechChainTimer) { clearTimeout(speechChainTimer); speechChainTimer = null; }
@@ -376,14 +377,11 @@
     }
     if (!speechChainRunning) return;
     try {
-      const filler = new SpeechSynthesisUtterance("お待ちください");
-      filler.lang = "ja-JP";
-      filler.volume = 0.6;
-      filler.rate = 1.4;
+      const filler = makeSilentUtterance();
       filler.onend = pumpSpeechChain;
       filler.onerror = pumpSpeechChain;
       speechSynthesis.speak(filler);
-      speechChainTimer = setTimeout(pumpSpeechChain, 5000);
+      speechChainTimer = setTimeout(pumpSpeechChain, 3000);
     } catch {
       speechChainRunning = false;
     }
@@ -397,7 +395,7 @@
 
   /**
    * 音声モード専用: ユーザー操作の同期コールスタック内で呼ぶこと。
-   * 「読み込み中」と読み上げ、以後 onend チェーンを維持する。
+   * 無音に近い発話で onend チェーンを起動する。
    */
   function startSpeechChain() {
     stopSpeechChain();
@@ -406,14 +404,11 @@
       speechSynthesis.resume();
       void speechSynthesis.getVoices();
       speechChainRunning = true;
-      const intro = new SpeechSynthesisUtterance("読み込み中");
-      intro.lang = "ja-JP";
-      intro.volume = 1;
-      intro.rate = 1.3;
-      intro.onend = pumpSpeechChain;
-      intro.onerror = pumpSpeechChain;
-      speechSynthesis.speak(intro);
-      speechChainTimer = setTimeout(pumpSpeechChain, 5000);
+      const seed = makeSilentUtterance();
+      seed.onend = pumpSpeechChain;
+      seed.onerror = pumpSpeechChain;
+      speechSynthesis.speak(seed);
+      speechChainTimer = setTimeout(pumpSpeechChain, 3000);
     } catch {
       speechChainRunning = false;
     }
