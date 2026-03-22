@@ -370,22 +370,90 @@
           body.appendChild(
             h("p", {
               class: "legalOverlayPara",
-              text: "当サービスに関するご質問・不具合のご連絡は、下記メールアドレスまでお願いいたします。",
+              text: "ご質問・不具合のご連絡は、下記フォームに入力のうえ「メールで送信」からお送りください。宛先は " + CONTACT_EMAIL + " です。",
             })
           );
-          const mailP = h("p", { class: "legalOverlayPara" });
-          mailP.appendChild(
-            h("a", {
-              class: "resultDetailWikiLink",
-              href: `mailto:${CONTACT_EMAIL}`,
-              text: CONTACT_EMAIL,
-            })
+
+          const nameInp = h("input", {
+            type: "text",
+            class: "input legalContactInput",
+            id: "legalContactName",
+            autocomplete: "name",
+            placeholder: "未記入可",
+          });
+          const subInp = h("input", {
+            type: "text",
+            class: "input legalContactInput",
+            id: "legalContactSubject",
+            autocomplete: "off",
+            placeholder: "例：不具合の連絡",
+          });
+          const msgTa = h("textarea", {
+            class: "input answerTextarea legalContactTextarea",
+            id: "legalContactBody",
+            rows: 6,
+            placeholder: "お問い合わせ内容をご記入ください",
+          });
+
+          const form = h("form", { class: "legalContactForm" });
+          form.appendChild(
+            h("div", { class: "legalContactField" }, [
+              h("label", { class: "legalContactLabel", for: "legalContactName", text: "お名前（任意）" }),
+              nameInp,
+            ])
           );
-          body.appendChild(mailP);
+          form.appendChild(
+            h("div", { class: "legalContactField" }, [
+              h("label", { class: "legalContactLabel", for: "legalContactSubject", text: "件名（必須）" }),
+              subInp,
+            ])
+          );
+          form.appendChild(
+            h("div", { class: "legalContactField" }, [
+              h("label", { class: "legalContactLabel", for: "legalContactBody", text: "お問い合わせ内容（必須）" }),
+              msgTa,
+            ])
+          );
+          form.appendChild(
+            h("button", { type: "submit", class: "primaryBtn legalContactSubmit", text: "メールで送信" })
+          );
+
+          form.addEventListener("submit", (e) => {
+            e.preventDefault();
+            const name = normalizeAnswer(nameInp.value);
+            const subject = normalizeAnswer(subInp.value);
+            const msg = normalizeAnswer(msgTa.value);
+            if (!subject) {
+              alert("件名を入力してください。");
+              subInp.focus();
+              return;
+            }
+            if (!msg) {
+              alert("お問い合わせ内容を入力してください。");
+              msgTa.focus();
+              return;
+            }
+            let mailBody = "";
+            if (name) mailBody += `お名前：${name}\n\n`;
+            mailBody += msg;
+            const subj = `[点灯Wiki] ${subject}`;
+            const url = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(mailBody)}`;
+            if (url.length > 1950) {
+              alert(
+                "内容が長すぎるため、メールアプリを開けない場合があります。文字を減らすか、" +
+                  CONTACT_EMAIL +
+                  " へ直接メールしてください。"
+              );
+              return;
+            }
+            window.location.href = url;
+          });
+
+          body.appendChild(form);
           body.appendChild(
             h("p", {
-              class: "legalOverlayPara",
-              text: "返信までにお時間をいただく場合があります。",
+              class: "legalOverlayPara legalContactNote",
+              text: "送信ボタンで、端末のメールアプリが開き、宛先・件名・本文が入力された状態になります。メールアプリが表示されない環境の場合は、" + CONTACT_EMAIL + " へ直接ご連絡ください。返信までにお時間をいただく場合があります。",
             })
           );
         },

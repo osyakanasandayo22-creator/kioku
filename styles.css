@@ -289,6 +289,50 @@ body.descAmbientOn .siteLegalFooter__copy {
   margin-bottom: 0;
 }
 
+/* お問い合わせオーバーレイ内フォーム */
+.legalContactForm {
+  margin: 4px 0 0;
+}
+
+.legalContactField {
+  margin-bottom: 12px;
+}
+
+.legalContactField:last-of-type {
+  margin-bottom: 14px;
+}
+
+.legalContactLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+.legalContactInput {
+  width: 100%;
+}
+
+.legalContactTextarea {
+  width: 100%;
+  min-height: 6.5rem;
+  resize: vertical;
+}
+
+.legalContactSubmit {
+  width: 100%;
+  margin-top: 2px;
+}
+
+.legalContactNote {
+  margin-top: 14px !important;
+  font-size: 12px !important;
+  line-height: 1.55 !important;
+  color: var(--muted) !important;
+}
+
 .siteLogoRow {
   flex: 0 0 auto;
   display: flex;
