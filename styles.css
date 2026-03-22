@@ -25,6 +25,8 @@
 html,
 body {
   height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 html {
@@ -33,7 +35,8 @@ html {
 
 body {
   margin: 0;
-  position: relative;
+  position: fixed;
+  inset: 0;
   font-family: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -131,11 +134,14 @@ svg {
   width: min(520px, 100%);
   margin: 0 auto;
   padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: none;
 }
 
 .siteLogoRow {
@@ -664,6 +670,7 @@ body.descAmbientOn .siteLogoImg--dark {
   max-height: min(52vh, 380px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .wordCardTitle {
@@ -1119,6 +1126,7 @@ button.answerResultCard:focus-visible {
   width: min(400px, 100%);
   max-height: min(78dvh, 560px);
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 22px 20px 20px;
   border-radius: var(--radius-card);
   background: var(--surface-strong);
