@@ -1,5 +1,5 @@
 /* Service Worker: app shell cache for offline start */
-const CACHE_NAME = "wordorder-shell-v6";
+const CACHE_NAME = "wordorder-shell-v7";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,8 @@ const APP_SHELL = [
   "./app.js",
   "./manifest.webmanifest",
   "./icon.svg",
+  "./images/ロゴ白.png",
+  "./images/ロゴ黒.png",
 ];
 
 self.addEventListener("install", (event) => {
