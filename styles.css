@@ -235,30 +235,31 @@ svg {
   user-select: none;
 }
 
-/* 説明ON・暖色背景上でも黒みの字で読めるように */
+/* 説明ON・画面下は背景が暗いので白系＋影で読めるように */
 body.descAmbientOn .siteLegalFooter {
-  border-top-color: rgba(18, 14, 10, 0.38);
+  border-top-color: rgba(255, 255, 255, 0.14);
 }
 
 body.descAmbientOn .siteLegalTag {
-  color: #14110e;
-  text-decoration-color: rgba(25, 20, 16, 0.5);
-  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.35);
+  color: rgba(255, 254, 250, 0.94);
+  text-decoration-color: rgba(255, 255, 255, 0.42);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.65);
 }
 
 body.descAmbientOn .siteLegalTag:hover {
-  color: #0a0806;
-  text-decoration-color: rgba(12, 10, 8, 0.65);
-  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.45);
+  color: #fff;
+  text-decoration-color: rgba(255, 255, 255, 0.65);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.7);
 }
 
 body.descAmbientOn .siteLegalSep {
-  color: rgba(45, 38, 32, 0.72);
+  color: rgba(235, 228, 218, 0.65);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 }
 
 body.descAmbientOn .siteLegalFooter__copy {
-  color: #12100d;
-  text-shadow: 0 1px 0 rgba(255, 250, 240, 0.3);
+  color: rgba(255, 252, 248, 0.92);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 1px rgba(0, 0, 0, 0.6);
 }
 
 /* PC: フッター行を明示的に左詰め */
