@@ -26,10 +26,24 @@ body {
 
 body {
   margin: 0;
+  position: relative;
   font-family: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   line-height: 1.55;
+  background-attachment: fixed;
+  /* 説明OFF: 落ち着いた薄暗さ（電球が消えた部屋） */
+  background-color: #cbc4bc;
+  background-image:
+    radial-gradient(ellipse 110% 75% at 12% 16%, rgba(255, 255, 255, 0.2) 0%, transparent 58%),
+    radial-gradient(ellipse 88% 62% at 90% 10%, rgba(255, 255, 255, 0.08) 0%, transparent 52%),
+    radial-gradient(ellipse 72% 48% at 72% 88%, rgba(100, 95, 90, 0.12) 0%, transparent 48%),
+    linear-gradient(168deg, #cfc8c0 0%, #c4bcb4 38%, #bab3ab 62%, #b0a9a2 100%);
+  transition: background-color 0.85s ease;
+}
+
+/* 電球ON: 元の明るさへ戻し、上から暖かい光が差し込む */
+body.descAmbientOn {
   background-color: #e8e4df;
   background-image:
     radial-gradient(ellipse 120% 80% at 10% 20%, rgba(255, 255, 255, 0.65) 0%, transparent 55%),
@@ -44,10 +58,30 @@ body {
       transparent 65%
     ),
     linear-gradient(168deg, #f2efeb 0%, #e5e1dc 38%, #ebe7e2 62%, #ded9d3 100%);
-  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.95s ease;
+  background:
+    radial-gradient(ellipse 125% 85% at 50% -8%, rgba(255, 228, 198, 0.55) 0%, rgba(255, 238, 218, 0.28) 42%, transparent 68%),
+    radial-gradient(ellipse 95% 70% at 78% 22%, rgba(255, 248, 235, 0.38) 0%, transparent 58%),
+    radial-gradient(ellipse 75% 55% at 22% 15%, rgba(255, 255, 255, 0.35) 0%, transparent 52%),
+    linear-gradient(185deg, rgba(255, 245, 228, 0.2) 0%, transparent 42%);
+}
+
+body.descAmbientOn::before {
+  opacity: 1;
 }
 
 .container {
+  position: relative;
+  z-index: 1;
   width: min(520px, 100%);
   margin: 0 auto;
   padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
@@ -230,6 +264,10 @@ body {
   display: grid;
   gap: 12px;
   margin: 8px 0 4px;
+}
+
+.modeGrid--belowBulb {
+  margin-top: 4px;
 }
 
 .modeRow {

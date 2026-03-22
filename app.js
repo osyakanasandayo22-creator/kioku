@@ -513,6 +513,17 @@
       showDescriptionCard: v,
     };
     saveStore(store);
+    syncDescriptionAmbient();
+  }
+
+  /** 説明ON時はページ全体を電球の光で優しく照らす（CSS `.descAmbientOn`） */
+  function syncDescriptionAmbient() {
+    const on = getSavedDescription();
+    document.body.classList.toggle("descAmbientOn", on);
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", on ? "#ebe8e4" : "#bfb6ab");
+    }
   }
 
   function renderGame(root) {
@@ -559,6 +570,7 @@
       cleanupResultDetail = null;
       clearNode(area);
       area.className = "gameArea";
+      syncDescriptionAmbient();
 
       const modeAudio = h("input", { type: "radio", name: "playMode", value: "audio", id: "modeAudio" });
       const modeCard = h("input", { type: "radio", name: "playMode", value: "card", id: "modeCard" });
@@ -615,13 +627,6 @@
         }
       });
 
-      area.appendChild(
-        h("div", { class: "modeGrid" }, [
-          h("div", { class: "modeRow" }, [modeAudio, labelAudio]),
-          h("div", { class: "modeRow" }, [modeCard, labelCard]),
-        ])
-      );
-
       const descWrap = h("div", { class: "descToggleWrap" });
       descWrap.appendChild(
         h("div", { class: "descToggleHead" }, [
@@ -660,7 +665,13 @@
         mountDescFallback();
       }
 
+      const modeGrid = h("div", { class: "modeGrid modeGrid--belowBulb" }, [
+        h("div", { class: "modeRow" }, [modeAudio, labelAudio]),
+        h("div", { class: "modeRow" }, [modeCard, labelCard]),
+      ]);
+
       area.appendChild(descWrap);
+      area.appendChild(modeGrid);
       area.appendChild(errBox);
       area.appendChild(h("div", { class: "formRow startBtnRow" }, [btnStart]));
     }
@@ -1090,6 +1101,7 @@
     cleanupGame = renderGame(gameRoot) || null;
   }
 
+  syncDescriptionAmbient();
   mountGame();
 
   if ("serviceWorker" in navigator) {

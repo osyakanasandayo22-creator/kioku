@@ -8,7 +8,7 @@
   --shine: hsla(0, 0%, 100%, calc(0.75 - (var(--on) * 0.5)));
   --cap: hsl(0, 0%, calc((40 + (var(--on) * 30)) * 1%));
   --filament: hsl(45, calc(var(--on) * 80%), calc((25 + (var(--on) * 75)) * 1%));
-  margin: 4px 0 12px;
+  margin: 0 0 14px;
   padding: 14px 14px 10px;
   border-radius: var(--radius-card);
   border: 1px solid var(--line);
