@@ -526,6 +526,7 @@
     };
     saveStore(store);
     syncDescriptionAmbient();
+    fillStartExplainerSlot();
   }
 
   /** 説明ON時はページ全体を電球の光で優しく照らす（CSS `.descAmbientOn`） */
@@ -536,6 +537,35 @@
     if (meta) {
       meta.setAttribute("content", on ? "#3d3428" : "#14110e");
     }
+  }
+
+  /** 開始画面のモード説明（電球切替直後にも反映） */
+  function fillStartExplainerSlot() {
+    const slot = document.getElementById("startExplainerSlot");
+    if (!slot) return;
+    clearNode(slot);
+    const desc = getSavedDescription();
+    const wrap = h("div", {
+      class: "answerModeExplainer" + (desc ? "" : " answerModeExplainer--recall"),
+    });
+    if (desc) {
+      wrap.appendChild(h("p", { class: "answerModeExplainerLead", text: "説明モード（5問）" }));
+      wrap.appendChild(
+        h("p", {
+          class: "answerModeExplainerBody",
+          text: "出題は5問です。各語の意味を覚え、回答では上から順に並んだ語ごとに、その下の欄へその語についての説明を書きます。AIは Wikipedia の冒頭を参考に、説明の精度で採点します。",
+        })
+      );
+    } else {
+      wrap.appendChild(h("p", { class: "answerModeExplainerLead", text: "単語モード（10問）" }));
+      wrap.appendChild(
+        h("p", {
+          class: "answerModeExplainerBody",
+          text: "出題は10問です。音声またはカードで語を覚え、回答では出題と同じ順に、思い出した語を入力します。AIは表記・意味の一致で採点します（1語10点・合計100点）。",
+        })
+      );
+    }
+    slot.appendChild(wrap);
   }
 
   function renderGame(root) {
@@ -684,17 +714,8 @@
 
       area.appendChild(descWrap);
       area.appendChild(modeGrid);
-      if (getSavedDescription()) {
-        area.appendChild(
-          h("div", { class: "answerModeExplainer" }, [
-            h("p", { class: "answerModeExplainerLead", text: "説明モード（5問）" }),
-            h("p", {
-              class: "answerModeExplainerBody",
-              text: "出題は5問です。各語の意味を覚え、回答では上から順に並んだ語ごとに、その下の欄へその語についての説明を書きます。AIは Wikipedia の冒頭を参考に、説明の精度で採点します。",
-            }),
-          ])
-        );
-      }
+      area.appendChild(h("div", { id: "startExplainerSlot", class: "startExplainerSlot" }));
+      fillStartExplainerSlot();
       area.appendChild(errBox);
       area.appendChild(h("div", { class: "formRow startBtnRow" }, [btnStart]));
     }
@@ -704,7 +725,8 @@
       cancelSpeech();
       clearTimeouts();
       clearNode(area);
-      area.className = "gameArea";
+      area.className =
+        "gameArea" + (!getSavedDescription() ? " gameArea--recallHud" : "");
 
       const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: `0/${seq.length}` })]);
       const progress = makeProgress();
@@ -768,7 +790,8 @@
       cancelSpeech();
       clearTimeouts();
       clearNode(area);
-      area.className = "gameArea";
+      area.className =
+        "gameArea" + (!getSavedDescription() ? " gameArea--recallHud" : "");
 
       let i = 0;
       const showDesc = extractMap != null && typeof extractMap === "object";
@@ -825,10 +848,10 @@
       cancelSpeech();
       clearTimeouts();
       clearNode(area);
-      area.className = "gameArea";
+      const descMode = getSavedDescription();
+      area.className = "gameArea" + (!descMode ? " gameArea--recallHud" : "");
 
       const inputs = [];
-      const descMode = getSavedDescription();
       const grid = h("div", {
         class: descMode ? "answerGrid answerGrid--description" : "answerGrid",
       });
