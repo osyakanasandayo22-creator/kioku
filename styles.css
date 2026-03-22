@@ -133,15 +133,13 @@ svg {
   z-index: 1;
   width: min(520px, 100%);
   margin: 0 auto;
-  padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
+  padding: max(20px, env(safe-area-inset-top)) 20px 0;
   height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: none;
+  overflow: hidden;
 }
 
 .siteLogoRow {
@@ -183,11 +181,21 @@ body.descAmbientOn .siteLogoImg--dark {
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  scrollbar-width: none;
+}
+
+.gameRootWrap::-webkit-scrollbar {
+  display: none;
 }
 
 .container:has(.gameArea--result) .gameRootWrap {
   align-items: stretch;
   justify-content: flex-start;
+  overflow: hidden;
 }
 
 #gameRoot {
@@ -270,7 +278,6 @@ body.descAmbientOn .siteLogoImg--dark {
   position: relative;
   display: flex;
   flex-direction: column;
-  max-height: calc(100dvh - max(20px, env(safe-area-inset-top)) - max(28px, env(safe-area-inset-bottom)));
   min-height: 0;
 }
 

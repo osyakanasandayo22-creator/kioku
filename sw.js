@@ -1,5 +1,5 @@
-/* Service Worker: app shell cache for offline start */
-const CACHE_NAME = "wordorder-shell-v8";
+/* Service Worker: network-first with offline fallback */
+const CACHE_NAME = "wordorder-shell-v9";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -47,19 +47,16 @@ self.addEventListener("fetch", (event) => {
 
   event.respondWith(
     (async () => {
-      const cached = await caches.match(req, { ignoreSearch: true });
-      if (cached) return cached;
       try {
         const res = await fetch(req);
-        // cache same-origin static assets opportunistically
-        const url = new URL(req.url);
-        if (url.origin === self.location.origin) {
+        if (res.ok && url.origin === self.location.origin) {
           const cache = await caches.open(CACHE_NAME);
           cache.put(req, res.clone());
         }
         return res;
       } catch {
-        // offline fallback: return app shell for navigations
+        const cached = await caches.match(req, { ignoreSearch: true });
+        if (cached) return cached;
         if (req.mode === "navigate") {
           const fallback = await caches.match("./index.html");
           if (fallback) return fallback;
@@ -69,4 +66,3 @@ self.addEventListener("fetch", (event) => {
     })()
   );
 });
-
