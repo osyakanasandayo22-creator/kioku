@@ -329,6 +329,8 @@
     } catch {
       // ignore
     }
+    stopSpeechKeepAlive();
+    mediaPlaybackUnlocked = false;
   }
 
   let sharedAudioCtx = null;
@@ -344,12 +346,37 @@
   let bulbClickAudio = null;
 
   let mediaPlaybackUnlocked = false;
+  let speechKeepAliveTimer = null;
+
+  /**
+   * iOS Safari は speechSynthesis が 15 秒程度使われないと自動ポーズする。
+   * 音声フェーズ中は定期的に resume() を呼んで生かしておく。
+   */
+  function startSpeechKeepAlive() {
+    stopSpeechKeepAlive();
+    speechKeepAliveTimer = setInterval(() => {
+      try {
+        if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
+          speechSynthesis.resume();
+        }
+      } catch {
+        // ignore
+      }
+    }, 4000);
+  }
+
+  function stopSpeechKeepAlive() {
+    if (speechKeepAliveTimer) {
+      clearInterval(speechKeepAliveTimer);
+      speechKeepAliveTimer = null;
+    }
+  }
 
   /**
    * iOS Safari は、ユーザー操作の**同期コールスタック内**でのみ
    * AudioContext.resume / speechSynthesis.speak / Audio.play を許可する。
-   * .then() や await 後では「ジェスチャー外」と見なされ無音になる。
-   * そのためこの関数は完全に同期で実行する。
+   * 全て同期で実行する。一度 speak が成功すればセッション中は有効になる。
+   * ただし cancel() を呼ぶと再ロックされるため、cancel は極力避ける。
    */
   function ensureMediaPlaybackUnlocked() {
     const ctx = getAudioContext();
@@ -393,21 +420,21 @@
       }
       try {
         if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
-          speechSynthesis.cancel();
           speechSynthesis.resume();
           void speechSynthesis.getVoices();
-          const u = new SpeechSynthesisUtterance("\u3000");
+          const u = new SpeechSynthesisUtterance("あ");
           u.lang = "ja-JP";
           u.volume = 0.01;
           u.rate = 2;
           speechSynthesis.speak(u);
+          startSpeechKeepAlive();
         }
       } catch {
         // ignore
       }
     } else {
       try {
-        if (typeof speechSynthesis !== "undefined" && speechSynthesis && speechSynthesis.paused) {
+        if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
           speechSynthesis.resume();
         }
       } catch {
@@ -627,9 +654,8 @@
       if (started) return;
       started = true;
       speechSynthesis.removeEventListener("voiceschanged", onVoices);
-      ensureMediaPlaybackUnlocked();
       try {
-        if (speechSynthesis.paused) speechSynthesis.resume();
+        speechSynthesis.resume();
       } catch {
         // ignore
       }
@@ -640,8 +666,11 @@
       const u2 = new SpeechSynthesisUtterance(word);
       applyJapaneseTts(u1, voiceForUtter);
       applyJapaneseTts(u2, voiceForUtter);
+
       u1.onend = () => {
+        speechSynthesis.resume();
         playBetweenRepeatTick().then(() => {
+          speechSynthesis.resume();
           speechSynthesis.speak(u2);
         });
       };
@@ -650,6 +679,7 @@
           finishRound();
           return;
         }
+        speechSynthesis.resume();
         const u3 = new SpeechSynthesisUtterance(descText);
         applyJapaneseTts(u3, voiceForUtter);
         u3.onend = finishRound;
@@ -990,7 +1020,6 @@
 
     function runAudioPhase(prefetchedExtractMap) {
       teardownDescBulb();
-      cancelSpeech();
       clearTimeouts();
       void swapWithFade(() => {
       clearNode(area);
@@ -1013,7 +1042,7 @@
 
       async function next() {
         if (i >= seq.length) {
-          cancelSpeech();
+          stopSpeechKeepAlive();
           renderAnswerPhase();
           return;
         }

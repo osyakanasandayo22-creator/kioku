@@ -198,6 +198,13 @@ body.descAmbientOn .siteLogoImg--dark {
   overflow: hidden;
 }
 
+.container:has(.gameArea--result) #gameRoot {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 #gameRoot {
   width: 100%;
 }
@@ -278,6 +285,7 @@ body.descAmbientOn .siteLogoImg--dark {
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
 }
 
