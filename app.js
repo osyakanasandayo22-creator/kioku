@@ -497,21 +497,21 @@
     saveStore(store);
   }
 
-  function getSavedDescAudio() {
-    return store.meta?.showDescriptionAudio === true;
+  /** 音声・カード共通の「説明」表示（共有スイッチ1つで両方に反映） */
+  function getSavedDescription() {
+    const m = store.meta || {};
+    if (typeof m.showDescription === "boolean") return m.showDescription;
+    return m.showDescriptionAudio === true || m.showDescriptionCard === true;
   }
 
-  function saveDescAudio(on) {
-    store.meta = { ...(store.meta || {}), showDescriptionAudio: !!on };
-    saveStore(store);
-  }
-
-  function getSavedDescCard() {
-    return store.meta?.showDescriptionCard === true;
-  }
-
-  function saveDescCard(on) {
-    store.meta = { ...(store.meta || {}), showDescriptionCard: !!on };
+  function saveDescription(on) {
+    const v = !!on;
+    store.meta = {
+      ...(store.meta || {}),
+      showDescription: v,
+      showDescriptionAudio: v,
+      showDescriptionCard: v,
+    };
     saveStore(store);
   }
 
@@ -523,6 +523,16 @@
     let timeoutIds = [];
     /** 判定の詳細レイヤーを閉じる（画面遷移時に呼ぶ） */
     let cleanupResultDetail = null;
+    let cleanupDescBulb = null;
+
+    function teardownDescBulb() {
+      try {
+        if (typeof cleanupDescBulb === "function") cleanupDescBulb();
+      } catch {
+        // ignore
+      }
+      cleanupDescBulb = null;
+    }
 
     function clearTimeouts() {
       for (const id of timeoutIds) clearTimeout(id);
@@ -540,6 +550,7 @@
     function renderStartScreen() {
       cancelSpeech();
       clearTimeouts();
+      teardownDescBulb();
       try {
         if (typeof cleanupResultDetail === "function") cleanupResultDetail();
       } catch {
@@ -560,14 +571,6 @@
       const labelCard = h("label", { class: "modeCardPick", for: "modeCard" }, [
         h("span", { class: "modeCardTitle", text: "カード" }),
       ]);
-
-      const descAudioInp = h("input", { type: "checkbox", id: "descAudio", class: "descSwitchInput" });
-      if (getSavedDescAudio()) descAudioInp.checked = true;
-      descAudioInp.addEventListener("change", () => saveDescAudio(descAudioInp.checked));
-
-      const descCardInp = h("input", { type: "checkbox", id: "descCard", class: "descSwitchInput" });
-      if (getSavedDescCard()) descCardInp.checked = true;
-      descCardInp.addEventListener("change", () => saveDescCard(descCardInp.checked));
 
       modeAudio.addEventListener("change", () => {
         if (modeAudio.checked) savePlayMode("audio");
@@ -591,7 +594,7 @@
           const titles = await fetchShortRandomWikipediaTitles(WORD_COUNT);
           seq = shuffle(titles);
           let cardExtractMap = null;
-          if (mode === "card" && getSavedDescCard()) {
+          if (mode === "card" && getSavedDescription()) {
             try {
               cardExtractMap = await fetchWikipediaExtracts(seq);
             } catch {
@@ -614,33 +617,56 @@
 
       area.appendChild(
         h("div", { class: "modeGrid" }, [
-          h("div", { class: "modeBlock" }, [
-            h("div", { class: "modeRow" }, [modeAudio, labelAudio]),
-            h("div", { class: "modeOptionRow" }, [
-              h("div", { class: "modeOptionSpacer", "aria-hidden": "true" }),
-              h("label", { class: "descSwitch", for: "descAudio" }, [
-                h("span", { class: "descSwitchLabel", text: "説明" }),
-                descAudioInp,
-              ]),
-            ]),
-          ]),
-          h("div", { class: "modeBlock" }, [
-            h("div", { class: "modeRow" }, [modeCard, labelCard]),
-            h("div", { class: "modeOptionRow" }, [
-              h("div", { class: "modeOptionSpacer", "aria-hidden": "true" }),
-              h("label", { class: "descSwitch", for: "descCard" }, [
-                h("span", { class: "descSwitchLabel", text: "説明" }),
-                descCardInp,
-              ]),
-            ]),
-          ]),
+          h("div", { class: "modeRow" }, [modeAudio, labelAudio]),
+          h("div", { class: "modeRow" }, [modeCard, labelCard]),
         ])
       );
+
+      const descWrap = h("div", { class: "descToggleWrap" });
+      descWrap.appendChild(
+        h("div", { class: "descToggleHead" }, [
+          h("span", { class: "descToggleTitle", text: "説明" }),
+          h("span", { class: "descToggleHint", text: "コードを下へ引いて切り替え" }),
+        ])
+      );
+      descWrap.appendChild(h("div", { class: "descToggleBulbHost" }));
+
+      function mountDescFallback() {
+        teardownDescBulb();
+        const host = descWrap.querySelector(".descToggleBulbHost");
+        if (host) host.remove();
+        const inp = h("input", { type: "checkbox", id: "descFallback", checked: getSavedDescription() });
+        inp.addEventListener("change", () => saveDescription(inp.checked));
+        const row = h("div", { class: "descToggleFallback" }, [
+          h("label", { for: "descFallback", text: "説明を表示する" }),
+          inp,
+        ]);
+        descWrap.appendChild(row);
+      }
+
+      if (typeof window.initDescriptionBulb === "function") {
+        window
+          .initDescriptionBulb(descWrap, {
+            initialOn: getSavedDescription(),
+            onChange: saveDescription,
+          })
+          .then((api) => {
+            cleanupDescBulb = api.destroy;
+          })
+          .catch(() => {
+            mountDescFallback();
+          });
+      } else {
+        mountDescFallback();
+      }
+
+      area.appendChild(descWrap);
       area.appendChild(errBox);
       area.appendChild(h("div", { class: "formRow startBtnRow" }, [btnStart]));
     }
 
     function runAudioPhase() {
+      teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
       clearNode(area);
@@ -668,7 +694,7 @@
         progress.setPct((i / seq.length) * 100);
         if (i > 0) await playBetweenWordsChime();
         const w = seq[i];
-        const desc = getSavedDescAudio() ? String(audioExtractMap[w] || "").trim() : "";
+        const desc = getSavedDescription() ? String(audioExtractMap[w] || "").trim() : "";
         speakWordTwiceThenPause(
           w,
           () => {
@@ -684,7 +710,7 @@
         if (roundBegun) return;
         roundBegun = true;
         sessionVoice = pickBestJapaneseVoice();
-        if (getSavedDescAudio()) {
+        if (getSavedDescription()) {
           try {
             audioExtractMap = await fetchWikipediaExtracts(seq);
           } catch {
@@ -704,6 +730,7 @@
     }
 
     function runCardPhase(extractMap) {
+      teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
       clearNode(area);
@@ -760,6 +787,7 @@
     }
 
     function renderAnswerPhase() {
+      teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
       clearNode(area);
@@ -1040,6 +1068,7 @@
     renderStartScreen();
 
     return () => {
+      teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
     };

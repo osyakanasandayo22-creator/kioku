@@ -1,9 +1,12 @@
 /* Service Worker: app shell cache for offline start */
-const CACHE_NAME = "wordorder-shell-v5";
+const CACHE_NAME = "wordorder-shell-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./description-bulb.css",
+  "./description-bulb.js",
+  "./description-bulb.svg",
   "./app.js",
   "./manifest.webmanifest",
   "./icon.svg",
