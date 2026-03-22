@@ -206,6 +206,14 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
+  function prefersReducedMotion() {
+    try {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    } catch {
+      return false;
+    }
+  }
+
   function h(tag, attrs = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -543,7 +551,6 @@
   function fillStartExplainerSlot() {
     const slot = document.getElementById("startExplainerSlot");
     if (!slot) return;
-    clearNode(slot);
     const desc = getSavedDescription();
     const wrap = h("div", {
       class: "answerModeExplainer" + (desc ? "" : " answerModeExplainer--recall"),
@@ -565,7 +572,39 @@
         })
       );
     }
-    slot.appendChild(wrap);
+
+    const prev = slot.firstElementChild;
+    if (!prev || prefersReducedMotion()) {
+      clearNode(slot);
+      slot.appendChild(wrap);
+      return;
+    }
+
+    prev.classList.add("answerModeExplainer--viewFadeOut");
+    let replaced = false;
+    const replace = () => {
+      if (replaced) return;
+      replaced = true;
+      prev.removeEventListener("animationend", onPrevEnd);
+      clearNode(slot);
+      slot.appendChild(wrap);
+      wrap.style.opacity = "0";
+      void wrap.offsetWidth;
+      wrap.classList.add("answerModeExplainer--viewFadeIn");
+      const done = () => {
+        wrap.removeEventListener("animationend", done);
+        wrap.classList.remove("answerModeExplainer--viewFadeIn");
+        wrap.style.opacity = "";
+      };
+      wrap.addEventListener("animationend", done, { once: true });
+      setTimeout(done, 520);
+    };
+    const onPrevEnd = (e) => {
+      if (e.target !== prev) return;
+      replace();
+    };
+    prev.addEventListener("animationend", onPrevEnd, { once: true });
+    setTimeout(replace, 480);
   }
 
   function renderGame(root) {
@@ -600,6 +639,55 @@
       timeoutIds.push(id);
     }
 
+    const VIEW_FADE_OUT_MS = 380;
+    const VIEW_FADE_IN_MS = 440;
+
+    function swapWithFade(buildFn) {
+      if (prefersReducedMotion() || area.childNodes.length === 0) {
+        buildFn();
+        return Promise.resolve();
+      }
+      return new Promise((resolve) => {
+        let outDone = false;
+        let inDone = false;
+        const finishIn = () => {
+          if (inDone) return;
+          inDone = true;
+          area.classList.remove("gameArea--viewFadeIn");
+          area.style.opacity = "";
+          resolve();
+        };
+        const afterOut = () => {
+          if (outDone) return;
+          outDone = true;
+          area.removeEventListener("animationend", onOutEnd);
+          area.classList.remove("gameArea--viewFadeOut");
+          area.style.opacity = "0";
+          buildFn();
+          void area.offsetWidth;
+          area.classList.add("gameArea--viewFadeIn");
+          area.addEventListener("animationend", onInEnd, { once: true });
+          setTimeout(finishIn, VIEW_FADE_IN_MS + 100);
+        };
+        const onOutEnd = (e) => {
+          if (e.target !== area) return;
+          if (!String(e.animationName || "").includes("viewFadeOut")) return;
+          afterOut();
+        };
+        const onInEnd = (e) => {
+          if (e.target !== area) return;
+          if (!String(e.animationName || "").includes("viewFadeIn")) return;
+          finishIn();
+        };
+        area.classList.add("gameArea--viewFadeOut");
+        area.addEventListener("animationend", onOutEnd, { once: true });
+        setTimeout(() => {
+          area.removeEventListener("animationend", onOutEnd);
+          afterOut();
+        }, VIEW_FADE_OUT_MS + 100);
+      });
+    }
+
     function renderStartScreen() {
       cancelSpeech();
       clearTimeouts();
@@ -610,9 +698,10 @@
         // ignore
       }
       cleanupResultDetail = null;
-      clearNode(area);
-      area.className = "gameArea";
-      syncDescriptionAmbient();
+      void swapWithFade(() => {
+        clearNode(area);
+        area.className = "gameArea";
+        syncDescriptionAmbient();
 
       const modeAudio = h("input", { type: "radio", name: "playMode", value: "audio", id: "modeAudio" });
       const modeCard = h("input", { type: "radio", name: "playMode", value: "card", id: "modeCard" });
@@ -718,15 +807,18 @@
       fillStartExplainerSlot();
       area.appendChild(errBox);
       area.appendChild(h("div", { class: "formRow startBtnRow" }, [btnStart]));
+      });
     }
 
     function runAudioPhase() {
       teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
+      void swapWithFade(() => {
       clearNode(area);
       area.className =
-        "gameArea" + (!getSavedDescription() ? " gameArea--recallHud" : "");
+        "gameArea" +
+        (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud");
 
       const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: `0/${seq.length}` })]);
       const progress = makeProgress();
@@ -783,15 +875,18 @@
       } else {
         waitForSpeechVoicesLoaded(beginAudioRound);
       }
+      });
     }
 
     function runCardPhase(extractMap) {
       teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
+      void swapWithFade(() => {
       clearNode(area);
       area.className =
-        "gameArea" + (!getSavedDescription() ? " gameArea--recallHud" : "");
+        "gameArea" +
+        (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud");
 
       let i = 0;
       const showDesc = extractMap != null && typeof extractMap === "object";
@@ -841,15 +936,18 @@
       area.appendChild(progress.el);
       area.appendChild(card);
       area.appendChild(h("div", { class: "formRow" }, [btnNext]));
+      });
     }
 
     function renderAnswerPhase() {
       teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
+      void swapWithFade(() => {
       clearNode(area);
       const descMode = getSavedDescription();
-      area.className = "gameArea" + (!descMode ? " gameArea--recallHud" : "");
+      area.className =
+        "gameArea" + (!descMode ? " gameArea--recallHud" : " gameArea--descHud");
 
       const inputs = [];
       const grid = h("div", {
@@ -857,12 +955,6 @@
       });
 
       if (descMode) {
-        grid.appendChild(
-          h("p", {
-            class: "answerPhaseLead",
-            text: "出題と同じ順で語が並んでいます。それぞれの下の説明欄に、その語が何を指すか・どんな意味かを書いてください。",
-          })
-        );
         for (let i = 0; i < seq.length; i++) {
           const block = h("div", { class: "answerDescBlock" });
           block.appendChild(
@@ -909,18 +1001,20 @@
         const descMode = getSavedDescription();
         const maxTotal = seq.length * getPointsPerQuestion();
 
-        clearNode(area);
-        area.className = "gameArea gameArea--result";
-        area.appendChild(
-          h("div", { class: "resultLoading" }, [
-            h("p", {
-              class: "resultLoadingText",
-              text: descMode
-                ? "AIが説明の内容を確認して採点しています…"
-                : "AIが採点し、説明を取得しています…",
-            }),
-          ])
-        );
+        await swapWithFade(() => {
+          clearNode(area);
+          area.className = "gameArea gameArea--result";
+          area.appendChild(
+            h("div", { class: "resultLoading" }, [
+              h("p", {
+                class: "resultLoadingText",
+                text: descMode
+                  ? "AIが説明の内容を確認して採点しています…"
+                  : "AIが採点し、説明を取得しています…",
+              }),
+            ])
+          );
+        });
 
         let extractMap = {};
         let gradeItems = [];
@@ -939,38 +1033,41 @@
               ? gradePayload.totalScore
               : gradeItems.reduce((a, b) => a + (Number(b.score) || 0), 0);
         } catch (e) {
-          clearNode(area);
-          area.className = "gameArea gameArea--result";
-          const msg = e && e.message ? String(e.message) : "採点に失敗しました";
-          area.appendChild(h("div", { class: "formError", text: msg }));
-          area.appendChild(
-            h("div", { class: "formRow" }, [
-              h("button", {
-                class: "primaryBtn",
-                type: "button",
-                text: "再試行",
-                onclick: () => void renderResultView(user),
-              }),
-            ])
-          );
-          area.appendChild(
-            h("div", { class: "formRow" }, [
-              h("button", {
-                class: "ghostBtn",
-                type: "button",
-                text: "はじめに戻る",
-                onclick: () => renderStartScreen(),
-              }),
-            ])
-          );
+          await swapWithFade(() => {
+            clearNode(area);
+            area.className = "gameArea gameArea--result";
+            const msg = e && e.message ? String(e.message) : "採点に失敗しました";
+            area.appendChild(h("div", { class: "formError", text: msg }));
+            area.appendChild(
+              h("div", { class: "formRow" }, [
+                h("button", {
+                  class: "primaryBtn",
+                  type: "button",
+                  text: "再試行",
+                  onclick: () => void renderResultView(user),
+                }),
+              ])
+            );
+            area.appendChild(
+              h("div", { class: "formRow" }, [
+                h("button", {
+                  class: "ghostBtn",
+                  type: "button",
+                  text: "はじめに戻る",
+                  onclick: () => renderStartScreen(),
+                }),
+              ])
+            );
+          });
           return;
         }
 
         const allOk = totalScore >= maxTotal;
 
-        clearNode(area);
-        area.className =
-          "gameArea gameArea--result" + (allOk ? " gameArea--resultPerfect" : "");
+        await swapWithFade(() => {
+          clearNode(area);
+          area.className =
+            "gameArea gameArea--result" + (allOk ? " gameArea--resultPerfect" : "");
 
         if (allOk) {
           void playPerfectFanfare();
@@ -1160,6 +1257,7 @@
           h("div", { class: "formRow" }, [btnHome]),
         ]);
         area.appendChild(h("div", { class: "resultScreen" }, [scroll, footer]));
+        });
       }
 
       btnCheck.addEventListener("click", () => {
@@ -1174,6 +1272,7 @@
       area.appendChild(h("div", { class: "formRow" }, [btnCheck, btnBack]));
 
       schedule(() => inputs[0]?.focus(), 80);
+      });
     }
 
     root.appendChild(area);
