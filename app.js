@@ -5,6 +5,9 @@
   const WORD_COUNT_RECALL = 10;
   const WORD_COUNT_DESCRIPTION = 5;
   const PAUSE_AFTER_SPEAK_MS = 1000;
+  /** 読み上げ・カード・採点参照で共有する Wikipedia 冒頭の上限（括弧除去・先頭文までで短縮） */
+  const WIKI_LEARNER_EXTRACT_MAX_CHARS = 140;
+  const WIKI_LEARNER_EXTRACT_MAX_SENTENCES = 2;
   /** 出題に使う記事タイトルの最大文字数（これより長いものは捨てる） */
   const MAX_TITLE_LENGTH = 8;
   /** 短いタイトルを集めるための API 試行上限（1 回で最大 10 件ずつ） */
@@ -29,6 +32,60 @@
     return String(s || "")
       .trim()
       .normalize("NFKC");
+  }
+
+  /**
+   * 括弧内（補足・読み・英名など）を除き、先頭から最大2文・最大文字数に収める。
+   * 音声読み上げ・カード表示・採点の reference が同じ文字列になるよう、fetch 時に一度だけ適用する。
+   */
+  function stripParentheticalSegments(s) {
+    let t = String(s || "");
+    let prev;
+    do {
+      prev = t;
+      t = t
+        .replace(/（[^（）]*）/g, "")
+        .replace(/\([^()]*\)/g, "")
+        .replace(/〔[^〕]*〕/g, "")
+        .replace(/\[[^\]]*\]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    } while (t !== prev);
+    return t;
+  }
+
+  function learnerExtractFromWikiRaw(raw) {
+    const maxChars = WIKI_LEARNER_EXTRACT_MAX_CHARS;
+    const maxSents = WIKI_LEARNER_EXTRACT_MAX_SENTENCES;
+    const orig = String(raw || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!orig) return "";
+
+    let body = stripParentheticalSegments(orig);
+    if (!body) body = orig;
+
+    const sentences = [];
+    let cur = "";
+    for (let i = 0; i < body.length; i++) {
+      const ch = body[i];
+      cur += ch;
+      if (/[。！？]/.test(ch)) {
+        sentences.push(cur.trim());
+        cur = "";
+        if (sentences.length >= maxSents) break;
+      }
+    }
+    if (cur.trim()) sentences.push(cur.trim());
+
+    let joined = sentences.slice(0, maxSents).join("");
+    if (joined.length > maxChars) {
+      const first = sentences[0] || joined;
+      joined = first.length > maxChars ? first.slice(0, maxChars - 1) + "…" : first;
+    }
+    const out = joined.trim();
+    if (out) return out;
+    return orig.length > maxChars ? orig.slice(0, maxChars - 1) + "…" : orig;
   }
 
   function isShortArticleTitle(s) {
@@ -96,7 +153,7 @@
     url.searchParams.set("prop", "extracts");
     url.searchParams.set("exintro", "1");
     url.searchParams.set("explaintext", "1");
-    url.searchParams.set("exchars", "360");
+    url.searchParams.set("exchars", "280");
     url.searchParams.set("titles", list.join("|"));
 
     const res = await fetch(url.toString(), { credentials: "omit" });
@@ -114,7 +171,7 @@
       const ex = String(p.extract || "")
         .replace(/\s+/g, " ")
         .trim();
-      if (ex) out[title] = ex;
+      if (ex) out[title] = learnerExtractFromWikiRaw(ex);
     }
     return out;
   }
