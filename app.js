@@ -19,15 +19,23 @@
 
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-  /** iOS Safari は speechSynthesis をユーザー操作と同じ同期チェーンで開始する必要がある */
-  function isLikelyIOS() {
+  /**
+   * 「開始」押下の同期的な最初に呼ぶ。iOS は fetch 後だとジェスチャーが切れるため、
+   * ここで一度だけ Web Speech を起動しておく（正解音の HTMLAudio とは別 API）。
+   */
+  function unlockWebSpeechAtUserGesture() {
+    if (typeof speechSynthesis === "undefined" || !speechSynthesis) return;
     try {
-      if (/iP(ad|hone|od)/.test(navigator.userAgent)) return true;
-      if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true;
+      speechSynthesis.cancel();
+      speechSynthesis.resume();
+      void speechSynthesis.getVoices();
+      const u = new SpeechSynthesisUtterance("\u200B");
+      u.volume = 0.02;
+      u.rate = 2;
+      speechSynthesis.speak(u);
     } catch {
       // ignore
     }
-    return false;
   }
 
   const shuffle = (arr) => {
@@ -428,61 +436,6 @@
     }
   }
 
-  /**
-   * getVoices() は初回が空・段階的に増えることが多い。
-   * 日本語ボイスが1件以上見えたあと、最後の voiceschanged から STABLE_MS 静かなら完了。
-   * 一件も来ない場合は HARD_MAX で打ち切り（その時点のリストで選ぶ）。
-   */
-  function waitForSpeechVoicesLoaded(onReady) {
-    if (typeof speechSynthesis === "undefined") {
-      onReady();
-      return;
-    }
-
-    const STABLE_MS = 550;
-    const HARD_MAX_MS = 5000;
-    let debounceTimer = null;
-    let hardTimer = null;
-    let done = false;
-
-    const finish = () => {
-      if (done) return;
-      done = true;
-      if (debounceTimer) clearTimeout(debounceTimer);
-      if (hardTimer) clearTimeout(hardTimer);
-      speechSynthesis.removeEventListener("voiceschanged", onVc);
-      try {
-        void speechSynthesis.getVoices();
-      } catch {
-        // ignore
-      }
-      onReady();
-    };
-
-    const scheduleStable = () => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(finish, STABLE_MS);
-    };
-
-    const onVc = () => {
-      try {
-        void speechSynthesis.getVoices();
-      } catch {
-        // ignore
-      }
-      if (dedupeJapaneseVoices(listJapaneseVoices()).length > 0) {
-        scheduleStable();
-      }
-    };
-
-    speechSynthesis.addEventListener("voiceschanged", onVc);
-    void speechSynthesis.getVoices();
-    if (dedupeJapaneseVoices(listJapaneseVoices()).length > 0) {
-      scheduleStable();
-    }
-    hardTimer = setTimeout(finish, HARD_MAX_MS);
-  }
-
   function scoreJapaneseVoice(v) {
     const id = `${v.name} ${v.voiceURI || ""}`.toLowerCase();
     let s = 0;
@@ -823,6 +776,9 @@
         errBox.hidden = true;
         errBox.textContent = "";
         const mode = modeCard.checked ? "card" : "audio";
+        if (mode === "audio") {
+          unlockWebSpeechAtUserGesture();
+        }
         savePlayMode(mode);
         const prevLabel = btnStart.textContent;
         btnStart.disabled = true;
@@ -966,33 +922,18 @@
       function beginAudioRound() {
         if (roundBegun) return;
         roundBegun = true;
+        try {
+          if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
+            speechSynthesis.cancel();
+          }
+        } catch {
+          // ignore
+        }
         sessionVoice = pickBestJapaneseVoice();
         void next();
       }
 
-      if (typeof speechSynthesis === "undefined") {
-        beginAudioRound();
-      } else if (isLikelyIOS()) {
-        const wrap = h("div", { class: "audioIOSPriming" });
-        wrap.appendChild(
-          h("p", {
-            class: "audioIOSPrimingHint",
-            text: "読み上げを開始するには、次のボタンを押してください。",
-          })
-        );
-        const btnGo = h("button", {
-          class: "primaryBtn audioIOSPrimingBtn",
-          type: "button",
-          text: "読み上げを開始",
-        });
-        btnGo.addEventListener("click", () => {
-          wrap.remove();
-          beginAudioRound();
-        });
-        area.appendChild(wrap);
-      } else {
-        waitForSpeechVoicesLoaded(beginAudioRound);
-      }
+      beginAudioRound();
       });
     }
 

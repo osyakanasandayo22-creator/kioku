@@ -520,43 +520,6 @@ body.descAmbientOn .siteLogoImg--dark {
   display: none;
 }
 
-/* iOS: Web Speech はユーザー操作から同期的に開始する必要があるための案内 */
-.audioIOSPriming {
-  margin: 0 0 18px;
-  padding: 14px 16px;
-  border-radius: var(--radius-card);
-  text-align: center;
-}
-
-.gameArea--recallHud .audioIOSPriming {
-  background: rgba(40, 35, 30, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-}
-
-.gameArea--descHud .audioIOSPriming {
-  background: rgba(255, 252, 248, 0.96);
-  border: 1px solid rgba(180, 145, 105, 0.38);
-}
-
-.audioIOSPrimingHint {
-  margin: 0 0 12px;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.gameArea--recallHud .audioIOSPrimingHint {
-  color: #e8dfd4;
-}
-
-.gameArea--descHud .audioIOSPrimingHint {
-  color: #4a4034;
-}
-
-.audioIOSPrimingBtn {
-  width: 100%;
-  max-width: 280px;
-}
-
 /* 説明OFF・出題中: 薄暗い背景でもカウンターとバーが読めるように */
 .gameArea--recallHud .counter {
   color: #2a2218;
