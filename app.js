@@ -19,6 +19,17 @@
 
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
+  /** iOS Safari は speechSynthesis をユーザー操作と同じ同期チェーンで開始する必要がある */
+  function isLikelyIOS() {
+    try {
+      if (/iP(ad|hone|od)/.test(navigator.userAgent)) return true;
+      if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true;
+    } catch {
+      // ignore
+    }
+    return false;
+  }
+
   const shuffle = (arr) => {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -549,6 +560,11 @@
       started = true;
       if (fallbackTimer) clearTimeout(fallbackTimer);
       speechSynthesis.removeEventListener("voiceschanged", onVoices);
+      try {
+        if (speechSynthesis.paused) speechSynthesis.resume();
+      } catch {
+        // ignore
+      }
 
       const u1 = new SpeechSynthesisUtterance(word);
       const u2 = new SpeechSynthesisUtterance(word);
@@ -815,6 +831,7 @@
           const titles = await fetchShortRandomWikipediaTitles(getSessionWordCount());
           seq = shuffle(titles);
           let cardExtractMap = null;
+          let audioExtractPrefetched = null;
           if (mode === "card" && getSavedDescription()) {
             try {
               cardExtractMap = await fetchWikipediaExtracts(seq);
@@ -822,8 +839,20 @@
               cardExtractMap = {};
             }
           }
-          if (mode === "audio") runAudioPhase();
-          else runCardPhase(cardExtractMap);
+          if (mode === "audio") {
+            if (getSavedDescription()) {
+              try {
+                audioExtractPrefetched = await fetchWikipediaExtracts(seq);
+              } catch {
+                audioExtractPrefetched = {};
+              }
+            } else {
+              audioExtractPrefetched = {};
+            }
+            runAudioPhase(audioExtractPrefetched);
+          } else {
+            runCardPhase(cardExtractMap);
+          }
         } catch (e) {
           errBox.textContent =
             e && e.shortTitles
@@ -888,7 +917,7 @@
       });
     }
 
-    function runAudioPhase() {
+    function runAudioPhase(prefetchedExtractMap) {
       teardownDescBulb();
       cancelSpeech();
       clearTimeouts();
@@ -897,6 +926,9 @@
       area.className =
         "gameArea" +
         (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud");
+
+      const audioExtractMap =
+        prefetchedExtractMap && typeof prefetchedExtractMap === "object" ? prefetchedExtractMap : {};
 
       const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: `0/${seq.length}` })]);
       const progress = makeProgress();
@@ -908,7 +940,6 @@
       let i = 0;
       let sessionVoice = null;
       let roundBegun = false;
-      let audioExtractMap = {};
 
       async function next() {
         if (i >= seq.length) {
@@ -932,24 +963,33 @@
         );
       }
 
-      async function beginAudioRound() {
+      function beginAudioRound() {
         if (roundBegun) return;
         roundBegun = true;
         sessionVoice = pickBestJapaneseVoice();
-        if (getSavedDescription()) {
-          try {
-            audioExtractMap = await fetchWikipediaExtracts(seq);
-          } catch {
-            audioExtractMap = {};
-          }
-        } else {
-          audioExtractMap = {};
-        }
         void next();
       }
 
       if (typeof speechSynthesis === "undefined") {
         beginAudioRound();
+      } else if (isLikelyIOS()) {
+        const wrap = h("div", { class: "audioIOSPriming" });
+        wrap.appendChild(
+          h("p", {
+            class: "audioIOSPrimingHint",
+            text: "読み上げを開始するには、次のボタンを押してください。",
+          })
+        );
+        const btnGo = h("button", {
+          class: "primaryBtn audioIOSPrimingBtn",
+          type: "button",
+          text: "読み上げを開始",
+        });
+        btnGo.addEventListener("click", () => {
+          wrap.remove();
+          beginAudioRound();
+        });
+        area.appendChild(wrap);
       } else {
         waitForSpeechVoicesLoaded(beginAudioRound);
       }
