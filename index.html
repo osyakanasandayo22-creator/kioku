@@ -42,12 +42,21 @@
         <div id="gameRoot"></div>
       </div>
       <footer class="siteLegalFooter" aria-label="法的表示">
-        <p class="siteLegalFooter__line">
-          <span class="siteLegalFooter__copy">© obake</span>
-        </p>
-        <p class="siteLegalFooter__line">
-          本サービスは Wikipedia の公開情報を参照します。記事本文の利用は各記事のライセンスに従います。採点・表示内容は自動処理に基づく参考情報であり、正確性・結果を保証するものではありません。
-        </p>
+        <ul class="siteLegalFooter__tags">
+          <li>
+            <button type="button" class="siteLegalTag" data-legal="terms">利用規約ページ</button>
+          </li>
+          <li>
+            <button type="button" class="siteLegalTag" data-legal="privacy">プライバシーポリシー</button>
+          </li>
+          <li>
+            <button type="button" class="siteLegalTag" data-legal="contact">お問い合わせページ</button>
+          </li>
+          <li>
+            <button type="button" class="siteLegalTag" data-legal="operator">運営者情報</button>
+          </li>
+        </ul>
+        <p class="siteLegalFooter__copyline"><span class="siteLegalFooter__copy">© obake</span></p>
       </footer>
     </main>
     <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>

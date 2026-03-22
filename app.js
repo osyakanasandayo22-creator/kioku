@@ -318,6 +318,130 @@
     return el;
   }
 
+  let legalOverlayEscapeAbort = null;
+  let legalOverlayBackdropEl = null;
+
+  function closeLegalOverlay() {
+    if (legalOverlayEscapeAbort) {
+      legalOverlayEscapeAbort.abort();
+      legalOverlayEscapeAbort = null;
+    }
+    if (legalOverlayBackdropEl) {
+      legalOverlayBackdropEl.remove();
+      legalOverlayBackdropEl = null;
+    }
+  }
+
+  /** フッタータグ → 採点詳細と同系のオーバーレイで表示 */
+  function initLegalFooter() {
+    const LEGAL_PAGES = {
+      terms: {
+        title: "利用規約ページ",
+        build: (body) => {
+          const lines = [
+            "本規約は、本サービス（以下「当サービス」）の利用条件を定めるものです。利用者は本規約に同意したうえで当サービスを利用してください。",
+            "当サービスは Wikipedia の公開 API 等を通じて取得した情報を出題・参照表示します。記事本文の利用は、各記事に表示されるライセンス（クリエイティブ・コモンズ表示等）に従います。",
+            "採点・コメント等は AI による自動処理に基づく参考情報であり、その正確性・完全性・有用性を保証するものではありません。",
+            "当サービスは、利用者環境に生じた不利益・損害について、当方の故意または重過失がある場合を除き責任を負いません。",
+            "当サービスは予告なく内容の変更・中断・終了を行う場合があります。",
+            "本規約の解釈にあたっては、日本法を準拠法とします。",
+          ];
+          for (const t of lines) body.appendChild(h("p", { class: "legalOverlayPara", text: t }));
+        },
+      },
+      privacy: {
+        title: "プライバシーポリシー",
+        build: (body) => {
+          const lines = [
+            "当サービスは、利用にあたり個人を特定する情報の入力を求めない設計を基本としています（ブラウザに保存される設定等を除く）。",
+            "出題・参照のため、Wikipedia 等の公開情報を取得します。取得内容は各提供元の方針に従います。",
+            "採点のために、入力されたテキストがサーバーに送信され、外部の AI サービスへ渡される場合があります。送信データは採点目的以外には利用しません。",
+            "アクセス解析ツールを導入する場合は、本ポリシーを改定して告知します。",
+            "お問い合わせは、別途掲載する連絡先までご連絡ください。",
+          ];
+          for (const t of lines) body.appendChild(h("p", { class: "legalOverlayPara", text: t }));
+        },
+      },
+      contact: {
+        title: "お問い合わせページ",
+        build: (body) => {
+          body.appendChild(
+            h("p", {
+              class: "legalOverlayPara",
+              text: "当サービスに関するご質問・不具合のご連絡は、メールにて受け付ける予定です。宛先アドレスは準備が整い次第、本ページに記載します。公開後は、ここに記載の連絡先へご連絡ください。",
+            })
+          );
+        },
+      },
+      operator: {
+        title: "運営者情報",
+        build: (body) => {
+          body.appendChild(h("p", { class: "legalOverlayPara", text: "サイト名：点灯Wiki" }));
+          body.appendChild(h("p", { class: "legalOverlayPara", text: "運営者：obake（個人）" }));
+          body.appendChild(
+            h("p", {
+              class: "legalOverlayPara",
+              text: "本サービスは非営利の学習・記憶トレーニング目的で提供しています。内容の正確性については Wikipedia 等の公開情報に依存します。",
+            })
+          );
+        },
+      },
+    };
+
+    function openLegalOverlay(key) {
+      const page = LEGAL_PAGES[key];
+      if (!page) return;
+      closeLegalOverlay();
+
+      const titleId = `legalOverlayTitle-${key}`;
+      const backdrop = h("div", {
+        class: "resultDetailBackdrop legalOverlayBackdrop",
+        role: "presentation",
+      });
+      const panel = h("div", {
+        class: "resultDetailPanel",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-labelledby": titleId,
+      });
+      const closeBtn = h("button", {
+        type: "button",
+        class: "resultDetailClose",
+        "aria-label": "閉じる",
+        text: "×",
+      });
+      const titleEl = h("h2", { id: titleId, class: "resultDetailHeading", text: page.title });
+      const body = h("div", { class: "legalOverlayBody" });
+      page.build(body);
+
+      const remove = () => closeLegalOverlay();
+      closeBtn.addEventListener("click", remove);
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) remove();
+      });
+      panel.addEventListener("click", (e) => e.stopPropagation());
+
+      legalOverlayEscapeAbort = new AbortController();
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") remove();
+      }, { signal: legalOverlayEscapeAbort.signal });
+
+      panel.appendChild(closeBtn);
+      panel.appendChild(titleEl);
+      panel.appendChild(body);
+      backdrop.appendChild(panel);
+      document.body.appendChild(backdrop);
+      legalOverlayBackdropEl = backdrop;
+      closeBtn.focus();
+    }
+
+    const root = document.querySelector(".siteLegalFooter");
+    if (!root) return;
+    root.querySelectorAll(".siteLegalTag[data-legal]").forEach((btn) => {
+      btn.addEventListener("click", () => openLegalOverlay(btn.getAttribute("data-legal")));
+    });
+  }
+
   function makeProgress() {
     const fill = h("div", { class: "progressFill" });
     const bar = h("div", { class: "progressBar" }, [fill]);
@@ -1527,6 +1651,7 @@
   syncDescriptionAmbient();
   attachMediaUnlockOnFirstInteraction();
   mountGame();
+  initLegalFooter();
 
   if ("serviceWorker" in navigator) {
     if (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {

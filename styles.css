@@ -142,26 +142,65 @@ svg {
   overflow: hidden;
 }
 
-/* 画面下・控えめな法的表示（本編の余白を奪わない） */
+/* 画面下・タグのみ（詳細はレイヤー） */
 .siteLegalFooter {
   flex: 0 0 auto;
   margin-top: 6px;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   font-size: 10px;
-  line-height: 1.55;
+  line-height: 1.45;
   letter-spacing: 0.02em;
-  color: rgba(210, 200, 190, 0.42);
   text-align: left;
   max-width: 100%;
 }
 
-.siteLegalFooter__line {
-  margin: 0 0 6px;
+.siteLegalFooter__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
 }
 
-.siteLegalFooter__line:last-child {
-  margin-bottom: 0;
+.siteLegalFooter__tags li {
+  margin: 0;
+  padding: 0;
+}
+
+.siteLegalTag {
+  appearance: none;
+  margin: 0;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  color: rgba(230, 220, 210, 0.88);
+  background: rgba(25, 22, 18, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.siteLegalTag:hover {
+  color: #fffef9;
+  background: rgba(40, 35, 30, 0.65);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.siteLegalTag:focus-visible {
+  outline: none;
+  box-shadow: var(--focus), 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.siteLegalFooter__copyline {
+  margin: 0;
+  color: rgba(210, 200, 190, 0.42);
 }
 
 .siteLegalFooter__copy {
@@ -172,11 +211,47 @@ svg {
 
 body.descAmbientOn .siteLegalFooter {
   border-top-color: rgba(45, 38, 30, 0.22);
+}
+
+body.descAmbientOn .siteLegalTag {
+  color: rgba(38, 32, 26, 0.92);
+  background: rgba(255, 252, 245, 0.35);
+  border-color: rgba(70, 55, 40, 0.22);
+  box-shadow: 0 2px 8px rgba(40, 28, 18, 0.12);
+}
+
+body.descAmbientOn .siteLegalTag:hover {
+  background: rgba(255, 252, 245, 0.52);
+  border-color: rgba(70, 55, 40, 0.32);
+}
+
+body.descAmbientOn .siteLegalFooter__copyline {
   color: rgba(55, 46, 38, 0.52);
 }
 
 body.descAmbientOn .siteLegalFooter__copy {
   color: rgba(42, 34, 28, 0.62);
+}
+
+/* 法的レイヤー（採点詳細と同系・本文は専用ブロック） */
+.legalOverlayBackdrop {
+  z-index: 250;
+}
+
+.legalOverlayBody {
+  margin: 0;
+  padding: 0 0 4px;
+}
+
+.legalOverlayPara {
+  margin: 0 0 12px;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.legalOverlayPara:last-child {
+  margin-bottom: 0;
 }
 
 .siteLogoRow {
@@ -314,7 +389,8 @@ body.descAmbientOn .siteLogoImg--dark {
   }
 
   .resultDetailBackdrop,
-  .resultDetailPanel {
+  .resultDetailPanel,
+  .legalOverlayBackdrop {
     animation: none !important;
   }
 }
