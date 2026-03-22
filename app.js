@@ -292,6 +292,29 @@
     }
   }
 
+  /** マウスなど細かいポインタがある（典型的な PC）。 */
+  function hasPrimaryFinePointer() {
+    try {
+      return window.matchMedia("(pointer: fine)").matches;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * iPhone 等（主にタッチ）では fetch 後の読み上げが無音になりやすいので「タップして開始」を出す。
+   * マウス操作の PC では従来どおりゲートなしで即開始する。
+   */
+  function needsAudioStartGate() {
+    if (hasPrimaryFinePointer()) return false;
+    try {
+      if (window.matchMedia("(pointer: coarse)").matches) return true;
+    } catch {
+      // ignore
+    }
+    return false;
+  }
+
   function h(tag, attrs = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -404,8 +427,10 @@
     });
   }
 
-  /** 電球トグル用クリック音（同一 AudioContext・外部ファイル不要）。 */
-  function playBulbToggleClickSound() {
+  /** tuggable-light-bulb 元スクリプトと同じ MP3（PC はこれを優先）。 */
+  const DESC_BULB_CLICK_MP3 = "https://assets.codepen.io/605876/click.mp3";
+
+  function playBulbToggleClickSoundWebAudio() {
     void resumeAudioContextIfNeeded().then(() => {
       applyMediaUnlockOnce();
       const ctx = getAudioContext();
@@ -427,6 +452,26 @@
         // ignore
       }
     });
+  }
+
+  /** PC は元の click.mp3、タッチ端末は iOS 向けに Web Audio 合成音。 */
+  function playBulbToggleClickSound() {
+    if (hasPrimaryFinePointer()) {
+      try {
+        if (!window.__descBulbClickAudio) {
+          window.__descBulbClickAudio = new Audio(DESC_BULB_CLICK_MP3);
+        }
+        const a = window.__descBulbClickAudio;
+        a.currentTime = 0;
+        void a.play().catch(() => {
+          playBulbToggleClickSoundWebAudio();
+        });
+        return;
+      } catch {
+        // fall through
+      }
+    }
+    playBulbToggleClickSoundWebAudio();
   }
 
   function attachMediaUnlockOnFirstInteraction() {
@@ -968,10 +1013,11 @@
       clearTimeouts();
       void swapWithFade(() => {
       clearNode(area);
+      const useAudioStartGate = needsAudioStartGate();
       area.className =
         "gameArea" +
         (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud") +
-        " gameArea--audioPending";
+        (useAudioStartGate ? " gameArea--audioPending" : "");
 
       const audioExtractMap =
         prefetchedExtractMap && typeof prefetchedExtractMap === "object" ? prefetchedExtractMap : {};
@@ -983,14 +1029,17 @@
       area.appendChild(status);
       area.appendChild(progress.el);
 
-      const audioStartGate = h("div", { class: "audioStartGate", tabIndex: 0, role: "button" }, [
-        h("p", { class: "audioStartGateTitle", text: "タップして開始" }),
-        h("p", {
-          class: "audioStartGateHint",
-          text: "単語の取得が終わったあとで読み上げるため、iPhone / Safari ではこの画面を一度タップしてください。",
-        }),
-      ]);
-      area.appendChild(audioStartGate);
+      let audioStartGate = null;
+      if (useAudioStartGate) {
+        audioStartGate = h("div", { class: "audioStartGate", tabIndex: 0, role: "button" }, [
+          h("p", { class: "audioStartGateTitle", text: "タップして開始" }),
+          h("p", {
+            class: "audioStartGateHint",
+            text: "単語の取得が終わったあとで読み上げるため、iPhone / Safari ではこの画面を一度タップしてください。",
+          }),
+        ]);
+        area.appendChild(audioStartGate);
+      }
 
       let i = 0;
       let sessionVoice = null;
@@ -1030,7 +1079,9 @@
       function dismissAudioStartGate() {
         if (audioGateUsed) return;
         audioGateUsed = true;
-        audioStartGate.remove();
+        if (audioStartGate && audioStartGate.parentNode) {
+          audioStartGate.remove();
+        }
         area.classList.remove("gameArea--audioPending");
         ensureMediaPlaybackUnlocked();
         beginAudioRound();
@@ -1041,14 +1092,18 @@
         dismissAudioStartGate();
       }
 
-      audioStartGate.addEventListener("pointerdown", onAudioGateActivate, { passive: false });
-      audioStartGate.addEventListener("click", onAudioGateActivate);
-      audioStartGate.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          dismissAudioStartGate();
-        }
-      });
+      if (useAudioStartGate && audioStartGate) {
+        audioStartGate.addEventListener("pointerdown", onAudioGateActivate, { passive: false });
+        audioStartGate.addEventListener("click", onAudioGateActivate);
+        audioStartGate.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            dismissAudioStartGate();
+          }
+        });
+      } else {
+        beginAudioRound();
+      }
       });
     }
 
