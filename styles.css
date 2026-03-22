@@ -136,7 +136,8 @@ svg {
   width: min(520px, 100%);
   margin: 0 auto;
   padding: max(20px, env(safe-area-inset-top)) 20px 0;
-  flex: 1 1 auto;
+  /* flex-basis 0 で min-height:auto によるはみ出しを防ぎ、フッターが常に表示されるようにする */
+  flex: 1 1 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -148,8 +149,10 @@ svg {
 /* 画面下・main の外＝ビューポート左基準で左寄せ可能（文字リンク＋© 1行） */
 .siteLegalFooter {
   position: relative;
-  z-index: 1;
+  /* body::before/after( z-index:0 )より手前に固定し、説明ON時も隠れない */
+  z-index: 2;
   flex: 0 0 auto;
+  flex-shrink: 0;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
@@ -232,26 +235,30 @@ svg {
   user-select: none;
 }
 
+/* 説明ON・暖色背景上でも黒みの字で読めるように */
 body.descAmbientOn .siteLegalFooter {
-  border-top-color: rgba(45, 38, 30, 0.22);
+  border-top-color: rgba(18, 14, 10, 0.38);
 }
 
 body.descAmbientOn .siteLegalTag {
-  color: rgba(42, 34, 26, 0.88);
-  text-decoration-color: rgba(42, 34, 26, 0.35);
+  color: #14110e;
+  text-decoration-color: rgba(25, 20, 16, 0.5);
+  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.35);
 }
 
 body.descAmbientOn .siteLegalTag:hover {
-  color: rgba(22, 18, 14, 0.98);
-  text-decoration-color: rgba(22, 18, 14, 0.55);
+  color: #0a0806;
+  text-decoration-color: rgba(12, 10, 8, 0.65);
+  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.45);
 }
 
 body.descAmbientOn .siteLegalSep {
-  color: rgba(90, 78, 65, 0.45);
+  color: rgba(45, 38, 32, 0.72);
 }
 
 body.descAmbientOn .siteLegalFooter__copy {
-  color: rgba(42, 34, 28, 0.62);
+  color: #12100d;
+  text-shadow: 0 1px 0 rgba(255, 250, 240, 0.3);
 }
 
 /* PC: フッター行を明示的に左詰め */
@@ -319,6 +326,8 @@ body.descAmbientOn .siteLegalFooter__copy {
   width: 100%;
   min-height: 6.5rem;
   resize: vertical;
+  /* 共通 .answerTextarea の 12px より控えめな角丸 */
+  border-radius: 6px;
 }
 
 .legalContactSubmit {
