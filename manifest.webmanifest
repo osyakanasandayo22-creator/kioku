@@ -1,6 +1,6 @@
 {
-  "name": "単語",
-  "short_name": "単語",
+  "name": "点灯Wiki",
+  "short_name": "点灯Wiki",
   "description": "",
   "start_url": "./",
   "scope": "./",

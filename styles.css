@@ -133,12 +133,49 @@ svg {
   padding: max(20px, env(safe-area-inset-top)) 20px max(28px, env(safe-area-inset-bottom));
   min-height: 100dvh;
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.siteLogoRow {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 0;
+}
+
+.siteLogo {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-weight: 700;
+  font-size: clamp(1rem, 3.5vw, 1.18rem);
+  letter-spacing: 0.1em;
+  color: rgba(255, 252, 248, 0.94);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+body.descAmbientOn .siteLogo {
+  color: #14110e;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.gameRootWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
 }
 
-.container:has(.gameArea--result) {
+.container:has(.gameArea--result) .gameRootWrap {
   align-items: stretch;
+  justify-content: flex-start;
 }
 
 #gameRoot {
