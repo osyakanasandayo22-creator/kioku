@@ -348,38 +348,42 @@
   let mediaPlaybackUnlocked = false;
 
   /**
-   * iOS Safari は speechSynthesis.speak() を「ユーザー操作の同期コールスタック内」
-   * でしか許可しない。ただし、ジェスチャー内で開始した utterance の onend から
-   * 呼んだ speak() は許可される（発話チェーン）。
+   * iOS Safari: speechSynthesis.speak() はユーザー操作の同期コールスタック内か、
+   * ジェスチャーで開始した utterance の onend コールバック内でしか許可されない。
    *
-   * 戦略:
-   *  1. ユーザーが「開始」を押した瞬間にダミー発話を開始
-   *  2. ダミーの onend で、単語がまだ来ていなければ次のダミーを speak (チェーン維持)
-   *  3. 単語が準備できたら speechChainCallback にセットする
-   *  4. 次の onend でそのコールバック（= 本物の読み上げ）を呼ぶ
+   * 戦略（音声モード時のみ）:
+   *  1.「開始」タップの同期コールスタックで「読み込み中」を speak する
+   *    → これが iOS の speechSynthesis アンロック＆チェーン起点になる
+   *  2. 同時に fetch を走らせる
+   *  3.「読み込み中」の onend で単語がまだ来ていなければ「お待ちください」を speak
+   *  4. 単語が準備できたら speechChainReady にコールバックをセット
+   *  5. 次の onend でそのコールバック（= 本物の読み上げ開始）を実行
    *
-   * これにより fetch の非同期ギャップを超えて読み上げが継続する。
+   * 全ての speak() が onend チェーンの中で呼ばれるため iOS でも途切れない。
    */
-  let speechChainCallback = null;
+  let speechChainReady = null;
   let speechChainRunning = false;
+  let speechChainTimer = null;
 
   function pumpSpeechChain() {
-    if (speechChainCallback) {
-      const fn = speechChainCallback;
-      speechChainCallback = null;
+    if (speechChainTimer) { clearTimeout(speechChainTimer); speechChainTimer = null; }
+    if (speechChainReady) {
+      const fn = speechChainReady;
+      speechChainReady = null;
       speechChainRunning = false;
       fn();
       return;
     }
     if (!speechChainRunning) return;
     try {
-      const filler = new SpeechSynthesisUtterance("\u3001");
+      const filler = new SpeechSynthesisUtterance("お待ちください");
       filler.lang = "ja-JP";
-      filler.volume = 0.01;
-      filler.rate = 5;
+      filler.volume = 0.6;
+      filler.rate = 1.4;
       filler.onend = pumpSpeechChain;
       filler.onerror = pumpSpeechChain;
       speechSynthesis.speak(filler);
+      speechChainTimer = setTimeout(pumpSpeechChain, 5000);
     } catch {
       speechChainRunning = false;
     }
@@ -387,9 +391,35 @@
 
   function stopSpeechChain() {
     speechChainRunning = false;
-    speechChainCallback = null;
+    speechChainReady = null;
+    if (speechChainTimer) { clearTimeout(speechChainTimer); speechChainTimer = null; }
   }
 
+  /**
+   * 音声モード専用: ユーザー操作の同期コールスタック内で呼ぶこと。
+   * 「読み込み中」と読み上げ、以後 onend チェーンを維持する。
+   */
+  function startSpeechChain() {
+    stopSpeechChain();
+    if (typeof speechSynthesis === "undefined" || !speechSynthesis) return;
+    try {
+      speechSynthesis.resume();
+      void speechSynthesis.getVoices();
+      speechChainRunning = true;
+      const intro = new SpeechSynthesisUtterance("読み込み中");
+      intro.lang = "ja-JP";
+      intro.volume = 1;
+      intro.rate = 1.3;
+      intro.onend = pumpSpeechChain;
+      intro.onerror = pumpSpeechChain;
+      speechSynthesis.speak(intro);
+      speechChainTimer = setTimeout(pumpSpeechChain, 5000);
+    } catch {
+      speechChainRunning = false;
+    }
+  }
+
+  /** AudioContext と HTMLAudio のアンロック（speechSynthesis は startSpeechChain で別途行う） */
   function ensureMediaPlaybackUnlocked() {
     const ctx = getAudioContext();
     if (ctx && ctx.state === "suspended") {
@@ -429,30 +459,6 @@
         } catch {
           // ignore
         }
-      }
-      try {
-        if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
-          speechSynthesis.resume();
-          void speechSynthesis.getVoices();
-          speechChainRunning = true;
-          const u = new SpeechSynthesisUtterance("\u3001");
-          u.lang = "ja-JP";
-          u.volume = 0.01;
-          u.rate = 5;
-          u.onend = pumpSpeechChain;
-          u.onerror = pumpSpeechChain;
-          speechSynthesis.speak(u);
-        }
-      } catch {
-        // ignore
-      }
-    } else {
-      try {
-        if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
-          speechSynthesis.resume();
-        }
-      } catch {
-        // ignore
       }
     }
   }
@@ -934,6 +940,7 @@
         errBox.textContent = "";
         const mode = modeCard.checked ? "card" : "audio";
         ensureMediaPlaybackUnlocked();
+        if (mode === "audio") startSpeechChain();
         savePlayMode(mode);
         const prevLabel = btnStart.textContent;
         btnStart.disabled = true;
@@ -1073,11 +1080,11 @@
 
       sessionVoice = pickBestJapaneseVoice();
 
-      speechChainCallback = () => {
-        void next();
-      };
-
-      if (!speechChainRunning) {
+      if (speechChainRunning) {
+        speechChainReady = () => {
+          void next();
+        };
+      } else {
         void next();
       }
       });

@@ -1,5 +1,5 @@
 /* Service Worker: network-first with offline fallback */
-const CACHE_NAME = "wordorder-shell-v11";
+const CACHE_NAME = "wordorder-shell-v12";
 const APP_SHELL = [
   "./",
   "./index.html",
