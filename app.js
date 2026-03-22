@@ -19,25 +19,6 @@
 
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
-  /**
-   * 「開始」押下の同期的な最初に呼ぶ。iOS は fetch 後だとジェスチャーが切れるため、
-   * ここで一度だけ Web Speech を起動しておく（正解音の HTMLAudio とは別 API）。
-   */
-  function unlockWebSpeechAtUserGesture() {
-    if (typeof speechSynthesis === "undefined" || !speechSynthesis) return;
-    try {
-      speechSynthesis.cancel();
-      speechSynthesis.resume();
-      void speechSynthesis.getVoices();
-      const u = new SpeechSynthesisUtterance("\u200B");
-      u.volume = 0.02;
-      u.rate = 2;
-      speechSynthesis.speak(u);
-    } catch {
-      // ignore
-    }
-  }
-
   const shuffle = (arr) => {
     const a = arr.slice();
     for (let i = a.length - 1; i > 0; i--) {
@@ -358,6 +339,113 @@
     return sharedAudioCtx;
   }
 
+  let mediaPlaybackUnlocked = false;
+
+  function resumeAudioContextIfNeeded() {
+    const ctx = getAudioContext();
+    if (!ctx) return Promise.resolve();
+    if (ctx.state === "suspended") return ctx.resume();
+    return Promise.resolve();
+  }
+
+  function applyMediaUnlockOnce() {
+    if (mediaPlaybackUnlocked) {
+      try {
+        if (typeof speechSynthesis !== "undefined" && speechSynthesis && speechSynthesis.paused) {
+          speechSynthesis.resume();
+        }
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    mediaPlaybackUnlocked = true;
+    const ctx = getAudioContext();
+    if (ctx) {
+      try {
+        const t0 = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 660;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.exponentialRampToValueAtTime(0.00001, t0 + 0.02);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.02);
+      } catch {
+        // ignore
+      }
+    }
+    try {
+      if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
+        speechSynthesis.cancel();
+        speechSynthesis.resume();
+        void speechSynthesis.getVoices();
+        const u = new SpeechSynthesisUtterance("\u3000");
+        u.lang = "ja-JP";
+        u.volume = 0.03;
+        u.rate = 1.5;
+        speechSynthesis.speak(u);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * iOS / Safari: Web Audio は resume を待ってから鳴らす。読み上げも同じチェーンで有効化する。
+   * fetch 後にだけ speak すると無音になることがあるため、音声モードでは別途「タップして開始」も使う。
+   */
+  function ensureMediaPlaybackUnlocked() {
+    void resumeAudioContextIfNeeded().then(() => {
+      applyMediaUnlockOnce();
+    });
+  }
+
+  /** 電球トグル用クリック音（同一 AudioContext・外部ファイル不要）。 */
+  function playBulbToggleClickSound() {
+    void resumeAudioContextIfNeeded().then(() => {
+      applyMediaUnlockOnce();
+      const ctx = getAudioContext();
+      if (!ctx) return;
+      try {
+        const t0 = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = 1040;
+        gain.gain.setValueAtTime(0.0001, t0);
+        gain.gain.linearRampToValueAtTime(0.1, t0 + 0.008);
+        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(t0);
+        osc.stop(t0 + 0.06);
+      } catch {
+        // ignore
+      }
+    });
+  }
+
+  function attachMediaUnlockOnFirstInteraction() {
+    if (window.__mediaUnlockListenersAttached) return;
+    window.__mediaUnlockListenersAttached = true;
+    const onFirst = () => {
+      ensureMediaPlaybackUnlocked();
+      document.removeEventListener("touchstart", onFirst, true);
+      document.removeEventListener("touchend", onFirst, true);
+      document.removeEventListener("click", onFirst, true);
+    };
+    document.addEventListener("touchstart", onFirst, { capture: true, passive: true });
+    document.addEventListener("touchend", onFirst, { capture: true, passive: true });
+    document.addEventListener("click", onFirst, { capture: true });
+  }
+
+  window.ensureMediaPlaybackUnlocked = ensureMediaPlaybackUnlocked;
+  window.playBulbToggleClickSound = playBulbToggleClickSound;
+
   /** 短い効果音（Web Audio）。失敗時は無音で続行。 */
   function playToneMs({ frequency, durationMs = 70, volume = 0.08, type = "sine" }) {
     return new Promise((resolve) => {
@@ -504,25 +592,26 @@
     const descText = String(description || "").trim();
 
     let started = false;
-    let fallbackTimer = null;
 
     const finishRound = () => setTimeout(onDone, PAUSE_AFTER_SPEAK_MS);
 
     const play = () => {
       if (started) return;
       started = true;
-      if (fallbackTimer) clearTimeout(fallbackTimer);
       speechSynthesis.removeEventListener("voiceschanged", onVoices);
+      ensureMediaPlaybackUnlocked();
       try {
         if (speechSynthesis.paused) speechSynthesis.resume();
       } catch {
         // ignore
       }
 
+      const voiceForUtter = voice || pickBestJapaneseVoice();
+
       const u1 = new SpeechSynthesisUtterance(word);
       const u2 = new SpeechSynthesisUtterance(word);
-      applyJapaneseTts(u1, voice);
-      applyJapaneseTts(u2, voice);
+      applyJapaneseTts(u1, voiceForUtter);
+      applyJapaneseTts(u2, voiceForUtter);
       u1.onend = () => {
         playBetweenRepeatTick().then(() => {
           speechSynthesis.speak(u2);
@@ -534,7 +623,7 @@
           return;
         }
         const u3 = new SpeechSynthesisUtterance(descText);
-        applyJapaneseTts(u3, voice);
+        applyJapaneseTts(u3, voiceForUtter);
         u3.onend = finishRound;
         speechSynthesis.speak(u3);
       };
@@ -552,7 +641,7 @@
 
     speechSynthesis.addEventListener("voiceschanged", onVoices);
     void speechSynthesis.getVoices();
-    fallbackTimer = setTimeout(() => play(), 700);
+    play();
   }
 
   function getSavedPlayMode() {
@@ -777,7 +866,7 @@
         errBox.textContent = "";
         const mode = modeCard.checked ? "card" : "audio";
         if (mode === "audio") {
-          unlockWebSpeechAtUserGesture();
+          ensureMediaPlaybackUnlocked();
         }
         savePlayMode(mode);
         const prevLabel = btnStart.textContent;
@@ -881,7 +970,8 @@
       clearNode(area);
       area.className =
         "gameArea" +
-        (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud");
+        (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud") +
+        " gameArea--audioPending";
 
       const audioExtractMap =
         prefetchedExtractMap && typeof prefetchedExtractMap === "object" ? prefetchedExtractMap : {};
@@ -892,6 +982,15 @@
 
       area.appendChild(status);
       area.appendChild(progress.el);
+
+      const audioStartGate = h("div", { class: "audioStartGate", tabIndex: 0, role: "button" }, [
+        h("p", { class: "audioStartGateTitle", text: "タップして開始" }),
+        h("p", {
+          class: "audioStartGateHint",
+          text: "単語の取得が終わったあとで読み上げるため、iPhone / Safari ではこの画面を一度タップしてください。",
+        }),
+      ]);
+      area.appendChild(audioStartGate);
 
       let i = 0;
       let sessionVoice = null;
@@ -922,18 +1021,34 @@
       function beginAudioRound() {
         if (roundBegun) return;
         roundBegun = true;
-        try {
-          if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
-            speechSynthesis.cancel();
-          }
-        } catch {
-          // ignore
-        }
+        ensureMediaPlaybackUnlocked();
         sessionVoice = pickBestJapaneseVoice();
         void next();
       }
 
-      beginAudioRound();
+      let audioGateUsed = false;
+      function dismissAudioStartGate() {
+        if (audioGateUsed) return;
+        audioGateUsed = true;
+        audioStartGate.remove();
+        area.classList.remove("gameArea--audioPending");
+        ensureMediaPlaybackUnlocked();
+        beginAudioRound();
+      }
+
+      function onAudioGateActivate(e) {
+        e.preventDefault();
+        dismissAudioStartGate();
+      }
+
+      audioStartGate.addEventListener("pointerdown", onAudioGateActivate, { passive: false });
+      audioStartGate.addEventListener("click", onAudioGateActivate);
+      audioStartGate.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          dismissAudioStartGate();
+        }
+      });
       });
     }
 
@@ -1361,6 +1476,7 @@
   }
 
   syncDescriptionAmbient();
+  attachMediaUnlockOnFirstInteraction();
   mountGame();
 
   if ("serviceWorker" in navigator) {

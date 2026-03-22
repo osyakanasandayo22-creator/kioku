@@ -7,51 +7,6 @@
 
   const BULB_SVG_URL = new URL("description-bulb.svg", document.baseURI).href;
 
-  function loadClickSound() {
-    const a = new Audio("https://assets.codepen.io/605876/click.mp3");
-    a.volume = 0.35;
-    try {
-      a.preload = "auto";
-      a.load();
-    } catch {
-      // ignore
-    }
-    return a;
-  }
-
-  /** MP3 が弾かれたとき用（同一タッチ内で AudioContext を resume して短いクリック音） */
-  function playWebAudioClickFallback() {
-    try {
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return;
-      if (!window.__descBulbAC) {
-        window.__descBulbAC = new AC();
-      }
-      const ctx = window.__descBulbAC;
-      const start = () => {
-        const t0 = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.value = 1040;
-        gain.gain.setValueAtTime(0.0001, t0);
-        gain.gain.linearRampToValueAtTime(0.09, t0 + 0.008);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(t0);
-        osc.stop(t0 + 0.06);
-      };
-      if (ctx.state === "suspended") {
-        void ctx.resume().then(start).catch(() => {});
-      } else {
-        start();
-      }
-    } catch {
-      // ignore
-    }
-  }
-
   /** モーフSVGはモバイルで重いので、軽い演出に切り替える */
   function shouldUseLiteCord() {
     try {
@@ -139,45 +94,6 @@
         let startY;
         const CORD_DURATION = 0.1;
 
-        let clickSound;
-        try {
-          clickSound = loadClickSound();
-        } catch {
-          clickSound = null;
-        }
-
-        let clickSoundUnlocked = false;
-
-        function unlockClickSound() {
-          if (!clickSound || clickSoundUnlocked) return;
-          const prevVol = clickSound.volume;
-          try {
-            clickSound.volume = 0;
-            const p = clickSound.play();
-            const finish = () => {
-              try {
-                clickSound.pause();
-                clickSound.currentTime = 0;
-                clickSound.volume = prevVol;
-              } catch {
-                // ignore
-              }
-              clickSoundUnlocked = true;
-            };
-            if (p && typeof p.then === "function") {
-              void p.then(finish).catch(finish);
-            } else {
-              finish();
-            }
-          } catch {
-            try {
-              clickSound.volume = prevVol;
-            } catch {
-              // ignore
-            }
-          }
-        }
-
         CORD_TL = timeline({
           paused: true,
           onStart: () => {
@@ -203,19 +119,12 @@
         }
 
         function playToggleFeedback() {
-          if (clickSound) {
-            try {
-              clickSound.volume = 0.35;
-              clickSound.currentTime = 0;
-            } catch {
-              // ignore
+          try {
+            if (typeof window.playBulbToggleClickSound === "function") {
+              window.playBulbToggleClickSound();
             }
-            const p = clickSound.play();
-            if (p && typeof p.catch === "function") {
-              p.catch(() => playWebAudioClickFallback());
-            }
-          } else {
-            playWebAudioClickFallback();
+          } catch {
+            // ignore
           }
 
           STATE.ON = !STATE.ON;
@@ -244,7 +153,13 @@
           trigger: HIT,
           type: "x,y",
           onPress: (e) => {
-            unlockClickSound();
+            try {
+              if (typeof window.ensureMediaPlaybackUnlocked === "function") {
+                window.ensureMediaPlaybackUnlocked();
+              }
+            } catch {
+              // ignore
+            }
             startX = e.x;
             startY = e.y;
           },
