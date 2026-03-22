@@ -4,13 +4,21 @@
  */
 const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
 
-function clampScore(n) {
+function clampScore(n, max) {
+  const cap = typeof max === "number" && max > 0 ? max : 20;
   const x = Math.round(Number(n));
   if (Number.isNaN(x)) return 0;
-  return Math.max(0, Math.min(20, x));
+  return Math.max(0, Math.min(cap, x));
 }
 
-function gradeFromScore(score) {
+/** max 10: 想起モード / max 20: 説明モード */
+function gradeFromScore(score, max) {
+  const cap = max >= 20 ? 20 : 10;
+  if (cap === 10) {
+    if (score >= 7) return "maru";
+    if (score >= 4) return "sankaku";
+    return "batsu";
+  }
   if (score >= 14) return "maru";
   if (score >= 7) return "sankaku";
   return "batsu";
@@ -71,6 +79,7 @@ module.exports = async (req, res) => {
   }
 
   const gradingMode = payload.gradingMode === "description" ? "description" : "recall";
+  const maxScore = gradingMode === "description" ? 20 : 10;
 
   const compact = itemsIn.map((it, i) => ({
     index: typeof it.index === "number" ? it.index : i,
@@ -79,7 +88,7 @@ module.exports = async (req, res) => {
     reference: String(it.reference ?? "").slice(0, 2200),
   }));
 
-  const instructionRecall = `あなたは日本語の語彙・表記の採点者です。次の各問について、模範解答（answer）と受験者の解答（response）を比べ、0〜20の整数 score を付けてください。
+  const instructionRecall = `あなたは日本語の語彙・表記の採点者です。次の各問について、模範解答（answer）と受験者の解答（response）を比べ、0〜10の整数 score を付けてください（1語あたり10点満点）。
 
 採点では少なくとも次の観点を考慮してください（コメントに簡潔に触れてください）:
 ・意味が一致しているか（同義・表記ゆれ・ひらがな/カタカナ/漢字の違いで意図が通じるか）
@@ -87,12 +96,12 @@ module.exports = async (req, res) => {
 ・空欄や全く別の語は低得点
 
 丸・三角・×の目安（score と整合させること）:
-・14〜20: maru（実質正解としてよい）
-・7〜13: sankaku（一部正しいが不完全）
-・0〜6: batsu（不正解に近い）
+・7〜10: maru（実質正解としてよい）
+・4〜6: sankaku（一部正しいが不完全）
+・0〜3: batsu（不正解に近い）
 
 出力は JSON のみ。次の型に厳密に従ってください:
-{"items":[{"index":数値,"score":0〜20の整数,"grade":"maru"|"sankaku"|"batsu","comment":string}]}
+{"items":[{"index":数値,"score":0〜10の整数,"grade":"maru"|"sankaku"|"batsu","comment":string}]}
 comment は日本語で60文字以内。
 
 入力データ:
@@ -163,11 +172,11 @@ ${JSON.stringify({ items: compact }, null, 0)}`;
 
   const normalized = compact.map((src) => {
     const g = byIndex.get(src.index) ?? {};
-    const score = clampScore(g?.score);
+    const score = clampScore(g?.score, maxScore);
     let grade = normalizeGradeToken(g?.grade);
-    if (!grade) grade = gradeFromScore(score);
+    if (!grade) grade = gradeFromScore(score, maxScore);
     else {
-      const expected = gradeFromScore(score);
+      const expected = gradeFromScore(score, maxScore);
       if (grade !== expected) grade = expected;
     }
     const comment = String(g?.comment ?? "")

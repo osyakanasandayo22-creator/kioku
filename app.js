@@ -119,7 +119,10 @@
     return out;
   }
 
-  const POINTS_PER_QUESTION = 20;
+  /** 想起10問×10点＝100点 / 説明5問×20点＝100点 */
+  function getPointsPerQuestion() {
+    return getSavedDescription() ? 20 : 10;
+  }
 
   /** 説明ONのときは出題数が少なめ（記憶負荷と採点のため） */
   function getSessionWordCount() {
@@ -525,27 +528,6 @@
     syncDescriptionAmbient();
   }
 
-  /**
-   * 電球 SVG の位置に合わせて環境光の中心を更新（天井固定ではなく裸電球からの発光）
-   */
-  function updateBulbGlowPosition() {
-    const wrap = document.querySelector(".descToggleWrap");
-    if (!wrap) return;
-    const bulbEl = wrap.querySelector(".bulb");
-    const svgEl = wrap.querySelector(".toggle-scene");
-    const hostEl = wrap.querySelector(".descToggleBulbHost");
-    const el = bulbEl || svgEl || hostEl || wrap;
-    if (!el || typeof el.getBoundingClientRect !== "function") return;
-    const r = el.getBoundingClientRect();
-    if (r.width < 2 && r.height < 2) return;
-    const vw = window.innerWidth || 1;
-    const vh = window.innerHeight || 1;
-    const cx = ((r.left + r.width / 2) / vw) * 100;
-    const cy = ((r.top + r.height / 2) / vh) * 100;
-    document.body.style.setProperty("--bulb-glow-x", `${cx}%`);
-    document.body.style.setProperty("--bulb-glow-y", `${cy}%`);
-  }
-
   /** 説明ON時はページ全体を電球の光で優しく照らす（CSS `.descAmbientOn`） */
   function syncDescriptionAmbient() {
     const on = getSavedDescription();
@@ -553,11 +535,6 @@
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
       meta.setAttribute("content", on ? "#3d3428" : "#14110e");
-    }
-    if (on) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(updateBulbGlowPosition);
-      });
     }
   }
 
@@ -682,7 +659,6 @@
           inp,
         ]);
         descWrap.appendChild(row);
-        schedule(updateBulbGlowPosition, 0);
       }
 
       if (typeof window.initDescriptionBulb === "function") {
@@ -693,8 +669,6 @@
           })
           .then((api) => {
             cleanupDescBulb = api.destroy;
-            schedule(updateBulbGlowPosition, 0);
-            schedule(updateBulbGlowPosition, 120);
           })
           .catch(() => {
             mountDescFallback();
@@ -723,9 +697,6 @@
       }
       area.appendChild(errBox);
       area.appendChild(h("div", { class: "formRow startBtnRow" }, [btnStart]));
-
-      schedule(updateBulbGlowPosition, 0);
-      schedule(updateBulbGlowPosition, 160);
     }
 
     function runAudioPhase() {
@@ -913,7 +884,7 @@
         if (!savedUserAnswers) btnCheck.disabled = true;
         const user = savedUserAnswers || inputs.map((el) => normalizeAnswer(el.value));
         const descMode = getSavedDescription();
-        const maxTotal = seq.length * POINTS_PER_QUESTION;
+        const maxTotal = seq.length * getPointsPerQuestion();
 
         clearNode(area);
         area.className = "gameArea gameArea--result";
@@ -1061,7 +1032,10 @@
 
           const gradeRow = h("div", { class: "resultDetailGradeRow" }, [
             h("span", { class: `resultDetailBadge ${gradeClass}`, text: sym }),
-            h("span", { class: "resultDetailPoints", text: `${g.score}/${POINTS_PER_QUESTION}点` }),
+            h("span", {
+              class: "resultDetailPoints",
+              text: `${g.score}/${getPointsPerQuestion()}点`,
+            }),
           ]);
 
           const commentP = h("p", { class: "resultDetailComment", text: g.comment || "（コメントなし）" });
@@ -1207,19 +1181,6 @@
 
   syncDescriptionAmbient();
   mountGame();
-
-  if (!window.__bulbGlowResizeBound) {
-    window.__bulbGlowResizeBound = true;
-    window.addEventListener(
-      "resize",
-      () => {
-        if (document.body.classList.contains("descAmbientOn")) {
-          requestAnimationFrame(updateBulbGlowPosition);
-        }
-      },
-      { passive: true }
-    );
-  }
 
   if ("serviceWorker" in navigator) {
     if (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1") {
