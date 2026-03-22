@@ -38,6 +38,9 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   line-height: 1.55;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
   background-attachment: fixed;
   /* 説明OFF: 古い居酒屋の地下室 — 煤・木・湿気の重さ */
   background-color: #14110e;
@@ -103,6 +106,23 @@ body::after {
 
 body.descAmbientOn::after {
   opacity: 0.42;
+}
+
+/* 入力系のみ選択可能（UIの誤選択・画像長押しメニューを抑止） */
+input,
+textarea,
+select,
+option {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+img,
+picture,
+svg {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .container {
@@ -559,6 +579,8 @@ body.descAmbientOn::after {
   background: rgba(255, 255, 255, 0.98);
   border-color: rgba(170, 135, 95, 0.4);
   color: #2e261c;
+  font-size: 16px;
+  border-radius: 12px;
   box-shadow:
     inset 0 2px 8px rgba(45, 35, 25, 0.06),
     0 1px 8px rgba(0, 0, 0, 0.12);
@@ -699,15 +721,17 @@ body.descAmbientOn::after {
   min-height: 7.5rem;
   resize: vertical;
   padding: 14px 18px;
-  font-size: 15px;
+  /* iOS Safari はフォームが 16px 未満だとフォーカス時にページが拡大する */
+  font-size: 16px;
   line-height: 1.55;
-  border-radius: calc(var(--radius-card) - 8px);
+  border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--surface-strong);
   font-family: inherit;
   color: var(--text);
   box-shadow: inset 0 2px 6px rgba(45, 40, 36, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  touch-action: manipulation;
 }
 
 .answerTextarea::placeholder {
@@ -761,6 +785,7 @@ body.descAmbientOn::after {
   outline: none;
   box-shadow: inset 0 2px 6px rgba(45, 40, 36, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  touch-action: manipulation;
 }
 
 .input::placeholder {
@@ -781,6 +806,7 @@ body.descAmbientOn::after {
   font-size: 17px;
   font-weight: 700;
   color: var(--text);
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .resultSummaryPerfect {
@@ -810,6 +836,28 @@ body.descAmbientOn::after {
 .resultSummaryScore {
   display: block;
   letter-spacing: 0.04em;
+  font-size: clamp(1.12rem, 4.2vw, 1.38rem);
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* 説明OFF（地下室の暗背景）では合計点が沈んで見えるため明るい字に */
+body:not(.descAmbientOn) .gameArea--result .resultSummary:not(.resultSummaryPerfect),
+body:not(.descAmbientOn) .gameArea--result .resultSummary:not(.resultSummaryPerfect) .resultSummaryScore {
+  color: #f5efe6;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55), 0 0 1px rgba(0, 0, 0, 0.9);
+}
+
+/* 満点カードは明るい面の上なので濃い字のまま */
+body:not(.descAmbientOn) .gameArea--result .resultSummaryPerfect,
+body:not(.descAmbientOn) .gameArea--result .resultSummaryPerfect .resultSummaryScore {
+  color: #1a1612;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+body:not(.descAmbientOn) .gameArea--result .resultTapHint {
+  color: rgba(245, 235, 224, 0.88);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .resultTapHint {

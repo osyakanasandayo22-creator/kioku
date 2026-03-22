@@ -5,9 +5,9 @@
   const WORD_COUNT_RECALL = 10;
   const WORD_COUNT_DESCRIPTION = 5;
   const PAUSE_AFTER_SPEAK_MS = 1000;
-  /** 読み上げ・カード・採点参照で共有する Wikipedia 冒頭の上限（括弧除去・先頭文までで短縮） */
-  const WIKI_LEARNER_EXTRACT_MAX_CHARS = 140;
-  const WIKI_LEARNER_EXTRACT_MAX_SENTENCES = 2;
+  /** 読み上げ・カード・採点参照で共有する Wikipedia 冒頭の上限（括弧除去・文単位で短縮） */
+  const WIKI_LEARNER_EXTRACT_MAX_CHARS = 220;
+  const WIKI_LEARNER_EXTRACT_MAX_SENTENCES = 3;
   /** 出題に使う記事タイトルの最大文字数（これより長いものは捨てる） */
   const MAX_TITLE_LENGTH = 8;
   /** 短いタイトルを集めるための API 試行上限（1 回で最大 10 件ずつ） */
@@ -34,8 +34,23 @@
       .normalize("NFKC");
   }
 
+  /** 読み上げ用に長すぎる1文を、読点付近で切って省略記号を付ける */
+  function truncateExtractTail(s, maxChars) {
+    const t = String(s || "").trim();
+    if (!t || t.length <= maxChars) return t;
+    let cut = t.slice(0, maxChars - 1);
+    const punct = Math.max(
+      cut.lastIndexOf("、"),
+      cut.lastIndexOf("，"),
+      cut.lastIndexOf("。"),
+      cut.lastIndexOf(" ")
+    );
+    if (punct > Math.floor(maxChars * 0.45)) cut = cut.slice(0, punct);
+    return cut + "…";
+  }
+
   /**
-   * 括弧内（補足・読み・英名など）を除き、先頭から最大2文・最大文字数に収める。
+   * 括弧内（補足・読み・英名など）を除き、先頭から文単位で最大文字数に収める。
    * 音声読み上げ・カード表示・採点の reference が同じ文字列になるよう、fetch 時に一度だけ適用する。
    */
   function stripParentheticalSegments(s) {
@@ -78,14 +93,20 @@
     }
     if (cur.trim()) sentences.push(cur.trim());
 
-    let joined = sentences.slice(0, maxSents).join("");
-    if (joined.length > maxChars) {
-      const first = sentences[0] || joined;
-      joined = first.length > maxChars ? first.slice(0, maxChars - 1) + "…" : first;
+    let acc = "";
+    for (let i = 0; i < sentences.length; i++) {
+      const next = acc ? acc + sentences[i] : sentences[i];
+      if (next.length <= maxChars) {
+        acc = next;
+        continue;
+      }
+      if (!acc) {
+        return truncateExtractTail(sentences[0], maxChars);
+      }
+      break;
     }
-    const out = joined.trim();
-    if (out) return out;
-    return orig.length > maxChars ? orig.slice(0, maxChars - 1) + "…" : orig;
+    if (acc.trim()) return acc.trim();
+    return truncateExtractTail(body, maxChars);
   }
 
   function isShortArticleTitle(s) {
@@ -153,7 +174,7 @@
     url.searchParams.set("prop", "extracts");
     url.searchParams.set("exintro", "1");
     url.searchParams.set("explaintext", "1");
-    url.searchParams.set("exchars", "280");
+    url.searchParams.set("exchars", "360");
     url.searchParams.set("titles", list.join("|"));
 
     const res = await fetch(url.toString(), { credentials: "omit" });
