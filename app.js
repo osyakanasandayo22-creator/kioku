@@ -324,12 +324,12 @@
   }
 
   function cancelSpeech() {
+    stopSpeechChain();
     try {
       if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
     } catch {
       // ignore
     }
-    stopSpeechKeepAlive();
     mediaPlaybackUnlocked = false;
   }
 
@@ -346,38 +346,50 @@
   let bulbClickAudio = null;
 
   let mediaPlaybackUnlocked = false;
-  let speechKeepAliveTimer = null;
 
   /**
-   * iOS Safari は speechSynthesis が 15 秒程度使われないと自動ポーズする。
-   * 音声フェーズ中は定期的に resume() を呼んで生かしておく。
+   * iOS Safari は speechSynthesis.speak() を「ユーザー操作の同期コールスタック内」
+   * でしか許可しない。ただし、ジェスチャー内で開始した utterance の onend から
+   * 呼んだ speak() は許可される（発話チェーン）。
+   *
+   * 戦略:
+   *  1. ユーザーが「開始」を押した瞬間にダミー発話を開始
+   *  2. ダミーの onend で、単語がまだ来ていなければ次のダミーを speak (チェーン維持)
+   *  3. 単語が準備できたら speechChainCallback にセットする
+   *  4. 次の onend でそのコールバック（= 本物の読み上げ）を呼ぶ
+   *
+   * これにより fetch の非同期ギャップを超えて読み上げが継続する。
    */
-  function startSpeechKeepAlive() {
-    stopSpeechKeepAlive();
-    speechKeepAliveTimer = setInterval(() => {
-      try {
-        if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
-          speechSynthesis.resume();
-        }
-      } catch {
-        // ignore
-      }
-    }, 4000);
-  }
+  let speechChainCallback = null;
+  let speechChainRunning = false;
 
-  function stopSpeechKeepAlive() {
-    if (speechKeepAliveTimer) {
-      clearInterval(speechKeepAliveTimer);
-      speechKeepAliveTimer = null;
+  function pumpSpeechChain() {
+    if (speechChainCallback) {
+      const fn = speechChainCallback;
+      speechChainCallback = null;
+      speechChainRunning = false;
+      fn();
+      return;
+    }
+    if (!speechChainRunning) return;
+    try {
+      const filler = new SpeechSynthesisUtterance("\u3001");
+      filler.lang = "ja-JP";
+      filler.volume = 0.01;
+      filler.rate = 5;
+      filler.onend = pumpSpeechChain;
+      filler.onerror = pumpSpeechChain;
+      speechSynthesis.speak(filler);
+    } catch {
+      speechChainRunning = false;
     }
   }
 
-  /**
-   * iOS Safari は、ユーザー操作の**同期コールスタック内**でのみ
-   * AudioContext.resume / speechSynthesis.speak / Audio.play を許可する。
-   * 全て同期で実行する。一度 speak が成功すればセッション中は有効になる。
-   * ただし cancel() を呼ぶと再ロックされるため、cancel は極力避ける。
-   */
+  function stopSpeechChain() {
+    speechChainRunning = false;
+    speechChainCallback = null;
+  }
+
   function ensureMediaPlaybackUnlocked() {
     const ctx = getAudioContext();
     if (ctx && ctx.state === "suspended") {
@@ -422,12 +434,14 @@
         if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
           speechSynthesis.resume();
           void speechSynthesis.getVoices();
-          const u = new SpeechSynthesisUtterance("あ");
+          speechChainRunning = true;
+          const u = new SpeechSynthesisUtterance("\u3001");
           u.lang = "ja-JP";
           u.volume = 0.01;
-          u.rate = 2;
+          u.rate = 5;
+          u.onend = pumpSpeechChain;
+          u.onerror = pumpSpeechChain;
           speechSynthesis.speak(u);
-          startSpeechKeepAlive();
         }
       } catch {
         // ignore
@@ -668,18 +682,14 @@
       applyJapaneseTts(u2, voiceForUtter);
 
       u1.onend = () => {
-        speechSynthesis.resume();
-        playBetweenRepeatTick().then(() => {
-          speechSynthesis.resume();
-          speechSynthesis.speak(u2);
-        });
+        playBetweenRepeatTick();
+        speechSynthesis.speak(u2);
       };
       u2.onend = () => {
         if (!descText) {
           finishRound();
           return;
         }
-        speechSynthesis.resume();
         const u3 = new SpeechSynthesisUtterance(descText);
         applyJapaneseTts(u3, voiceForUtter);
         u3.onend = finishRound;
@@ -1042,7 +1052,6 @@
 
       async function next() {
         if (i >= seq.length) {
-          stopSpeechKeepAlive();
           renderAnswerPhase();
           return;
         }
@@ -1062,9 +1071,15 @@
         );
       }
 
-      ensureMediaPlaybackUnlocked();
       sessionVoice = pickBestJapaneseVoice();
-      void next();
+
+      speechChainCallback = () => {
+        void next();
+      };
+
+      if (!speechChainRunning) {
+        void next();
+      }
       });
     }
 
