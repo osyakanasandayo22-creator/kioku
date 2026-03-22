@@ -437,8 +437,15 @@
 
     const root = document.querySelector(".siteLegalFooter");
     if (!root) return;
-    root.querySelectorAll(".siteLegalTag[data-legal]").forEach((btn) => {
-      btn.addEventListener("click", () => openLegalOverlay(btn.getAttribute("data-legal")));
+    root.querySelectorAll(".siteLegalTag[data-legal]").forEach((el) => {
+      const open = () => openLegalOverlay(el.getAttribute("data-legal"));
+      el.addEventListener("click", open);
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          open();
+        }
+      });
     });
   }
 

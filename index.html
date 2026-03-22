@@ -41,24 +41,20 @@
       <div class="gameRootWrap">
         <div id="gameRoot"></div>
       </div>
-      <footer class="siteLegalFooter" aria-label="法的表示">
-        <ul class="siteLegalFooter__tags">
-          <li>
-            <button type="button" class="siteLegalTag" data-legal="terms">利用規約ページ</button>
-          </li>
-          <li>
-            <button type="button" class="siteLegalTag" data-legal="privacy">プライバシーポリシー</button>
-          </li>
-          <li>
-            <button type="button" class="siteLegalTag" data-legal="contact">お問い合わせページ</button>
-          </li>
-          <li>
-            <button type="button" class="siteLegalTag" data-legal="operator">運営者情報</button>
-          </li>
-        </ul>
-        <p class="siteLegalFooter__copyline"><span class="siteLegalFooter__copy">© obake</span></p>
-      </footer>
     </main>
+    <footer class="siteLegalFooter" aria-label="法的表示">
+      <div class="siteLegalFooter__row">
+        <span class="siteLegalTag" data-legal="terms" role="button" tabindex="0">利用規約ページ</span>
+        <span class="siteLegalSep" aria-hidden="true">・</span>
+        <span class="siteLegalTag" data-legal="privacy" role="button" tabindex="0">プライバシーポリシー</span>
+        <span class="siteLegalSep" aria-hidden="true">・</span>
+        <span class="siteLegalTag" data-legal="contact" role="button" tabindex="0">お問い合わせページ</span>
+        <span class="siteLegalSep" aria-hidden="true">・</span>
+        <span class="siteLegalTag" data-legal="operator" role="button" tabindex="0">運営者情報</span>
+        <span class="siteLegalSep" aria-hidden="true">・</span>
+        <span class="siteLegalFooter__copy">© obake</span>
+      </div>
+    </footer>
     <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="https://assets.codepen.io/16327/MorphSVGPlugin3.min.js"></script>
     <script src="https://unpkg.com/gsap@3.12.5/dist/Draggable.min.js"></script>

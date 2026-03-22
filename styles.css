@@ -37,6 +37,8 @@ body {
   margin: 0;
   position: fixed;
   inset: 0;
+  display: flex;
+  flex-direction: column;
   font-family: "Noto Serif JP", "Hiragino Mincho ProN", "Yu Mincho", serif;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -133,8 +135,9 @@ svg {
   z-index: 1;
   width: min(520px, 100%);
   margin: 0 auto;
-  padding: max(20px, env(safe-area-inset-top)) 20px max(10px, env(safe-area-inset-bottom));
-  height: 100dvh;
+  padding: max(20px, env(safe-area-inset-top)) 20px 0;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -142,71 +145,91 @@ svg {
   overflow: hidden;
 }
 
-/* 画面下・タグのみ（詳細はレイヤー） */
+/* 画面下・main の外＝ビューポート左基準で左寄せ可能（文字リンク＋© 1行） */
 .siteLegalFooter {
+  position: relative;
+  z-index: 1;
   flex: 0 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
   margin-top: 6px;
-  padding-top: 8px;
+  padding: 8px max(20px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom))
+    max(20px, env(safe-area-inset-left));
   border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 10px;
-  line-height: 1.45;
   letter-spacing: 0.02em;
   text-align: left;
   max-width: 100%;
+  min-width: 0;
 }
 
-.siteLegalFooter__tags {
+.siteLegalFooter__row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-  align-items: center;
-  margin: 0 0 8px;
-  padding: 0;
-  list-style: none;
-}
-
-.siteLegalFooter__tags li {
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0;
   margin: 0;
   padding: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+  font-size: clamp(8px, 2.35vw, 10px);
+  line-height: 1.5;
+}
+
+.siteLegalFooter__row::-webkit-scrollbar {
+  display: none;
+  height: 0;
 }
 
 .siteLegalTag {
-  appearance: none;
+  flex: 0 0 auto;
   margin: 0;
-  padding: 5px 11px;
-  border-radius: var(--radius-pill);
-  font-family: inherit;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.03em;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  line-height: inherit;
   cursor: pointer;
-  color: rgba(230, 220, 210, 0.88);
-  background: rgba(25, 22, 18, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  color: rgba(215, 205, 195, 0.78);
+  text-decoration: underline;
+  text-decoration-color: rgba(215, 205, 195, 0.35);
+  text-underline-offset: 2px;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
 }
 
 .siteLegalTag:hover {
-  color: #fffef9;
-  background: rgba(40, 35, 30, 0.65);
-  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(250, 245, 238, 0.95);
+  text-decoration-color: rgba(250, 245, 238, 0.55);
 }
 
 .siteLegalTag:focus-visible {
   outline: none;
-  box-shadow: var(--focus), 0 1px 4px rgba(0, 0, 0, 0.25);
+  border-radius: 2px;
+  box-shadow: var(--focus);
 }
 
-.siteLegalFooter__copyline {
-  margin: 0;
-  color: rgba(210, 200, 190, 0.42);
+.siteLegalSep {
+  flex: 0 0 auto;
+  margin: 0 1px;
+  color: rgba(175, 165, 155, 0.45);
+  user-select: none;
+  pointer-events: none;
+  font-size: inherit;
 }
 
 .siteLegalFooter__copy {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: rgba(225, 215, 205, 0.5);
+  color: rgba(210, 200, 190, 0.55);
+  user-select: none;
 }
 
 body.descAmbientOn .siteLegalFooter {
@@ -214,23 +237,35 @@ body.descAmbientOn .siteLegalFooter {
 }
 
 body.descAmbientOn .siteLegalTag {
-  color: rgba(38, 32, 26, 0.92);
-  background: rgba(255, 252, 245, 0.35);
-  border-color: rgba(70, 55, 40, 0.22);
-  box-shadow: 0 2px 8px rgba(40, 28, 18, 0.12);
+  color: rgba(42, 34, 26, 0.88);
+  text-decoration-color: rgba(42, 34, 26, 0.35);
 }
 
 body.descAmbientOn .siteLegalTag:hover {
-  background: rgba(255, 252, 245, 0.52);
-  border-color: rgba(70, 55, 40, 0.32);
+  color: rgba(22, 18, 14, 0.98);
+  text-decoration-color: rgba(22, 18, 14, 0.55);
 }
 
-body.descAmbientOn .siteLegalFooter__copyline {
-  color: rgba(55, 46, 38, 0.52);
+body.descAmbientOn .siteLegalSep {
+  color: rgba(90, 78, 65, 0.45);
 }
 
 body.descAmbientOn .siteLegalFooter__copy {
   color: rgba(42, 34, 28, 0.62);
+}
+
+/* PC: フッター行を明示的に左詰め */
+@media (min-width: 768px) {
+  .siteLegalFooter {
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+    text-align: left;
+  }
+
+  .siteLegalFooter__row {
+    justify-content: flex-start;
+    width: 100%;
+  }
 }
 
 /* 法的レイヤー（採点詳細と同系・本文は専用ブロック） */
