@@ -17,6 +17,14 @@
 
   const $ = (sel, root = document) => root.querySelector(sel);
 
+  /** 画面遷移後に外側・結果内スクロールを先頭へ（結果が途中から始まるのを防ぐ） */
+  function scrollGameShellToTop() {
+    const wrap = document.querySelector(".gameRootWrap");
+    if (wrap) wrap.scrollTop = 0;
+    const rs = document.querySelector(".resultScroll");
+    if (rs) rs.scrollTop = 0;
+  }
+
   const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
 
   const shuffle = (arr) => {
@@ -848,8 +856,15 @@
     const VIEW_FADE_IN_MS = 440;
 
     function swapWithFade(buildFn) {
+      const afterBuild = () => {
+        scrollGameShellToTop();
+        requestAnimationFrame(() => {
+          scrollGameShellToTop();
+        });
+      };
       if (prefersReducedMotion() || area.childNodes.length === 0) {
         buildFn();
+        afterBuild();
         return Promise.resolve();
       }
       return new Promise((resolve) => {
@@ -869,6 +884,7 @@
           area.classList.remove("gameArea--viewFadeOut");
           area.style.opacity = "0";
           buildFn();
+          afterBuild();
           void area.offsetWidth;
           area.classList.add("gameArea--viewFadeIn");
           area.addEventListener("animationend", onInEnd, { once: true });

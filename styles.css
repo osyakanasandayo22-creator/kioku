@@ -180,7 +180,8 @@ body.descAmbientOn .siteLogoImg--dark {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* center + overflow は先頭までスクロールできないことがあるため上詰め */
+  justify-content: flex-start;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
@@ -343,15 +344,29 @@ body.descAmbientOn .siteLogoImg--dark {
   margin-top: auto;
 }
 
+/* 説明OFF: 白系（暗い背景用） */
 .resultLoading {
   text-align: center;
-  padding: 36px 16px;
-  color: var(--muted);
-  font-size: 15px;
+  padding: 36px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: #fffef9;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.75), 0 0 1px rgba(0, 0, 0, 0.85);
 }
 
 .resultLoadingText {
   margin: 0;
+}
+
+/* 説明ON: 黒系（暖色の灯り下） */
+body.descAmbientOn .resultLoading {
+  color: #14110e;
+  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.45);
+  background: rgba(255, 252, 245, 0.32);
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(55, 42, 30, 0.22);
+  box-shadow: 0 4px 18px rgba(40, 28, 18, 0.16);
 }
 
 /* --- 丸ボタン --- */
@@ -920,9 +935,18 @@ body:not(.descAmbientOn) .gameArea--result .resultSummaryPerfect .resultSummaryS
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
+/* 説明OFF: 白系 */
 body:not(.descAmbientOn) .gameArea--result .resultTapHint {
-  color: rgba(245, 235, 224, 0.88);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  color: #fffef9;
+  font-weight: 600;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7), 0 0 1px rgba(0, 0, 0, 0.85);
+}
+
+/* 説明ON: 黒系 */
+body.descAmbientOn .gameArea--result .resultTapHint {
+  color: #14110e;
+  font-weight: 600;
+  text-shadow: 0 1px 0 rgba(255, 252, 245, 0.5);
 }
 
 .resultTapHint {
