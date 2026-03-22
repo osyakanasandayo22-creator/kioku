@@ -133,13 +133,50 @@ svg {
   z-index: 1;
   width: min(520px, 100%);
   margin: 0 auto;
-  padding: max(20px, env(safe-area-inset-top)) 20px 0;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(10px, env(safe-area-inset-bottom));
   height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: flex-start;
   overflow: hidden;
+}
+
+/* 画面下・控えめな法的表示（本編の余白を奪わない） */
+.siteLegalFooter {
+  flex: 0 0 auto;
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  color: rgba(210, 200, 190, 0.42);
+  text-align: left;
+  max-width: 100%;
+}
+
+.siteLegalFooter__line {
+  margin: 0 0 6px;
+}
+
+.siteLegalFooter__line:last-child {
+  margin-bottom: 0;
+}
+
+.siteLegalFooter__copy {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(225, 215, 205, 0.5);
+}
+
+body.descAmbientOn .siteLegalFooter {
+  border-top-color: rgba(45, 38, 30, 0.22);
+  color: rgba(55, 46, 38, 0.52);
+}
+
+body.descAmbientOn .siteLegalFooter__copy {
+  color: rgba(42, 34, 28, 0.62);
 }
 
 .siteLogoRow {
@@ -185,7 +222,7 @@ body.descAmbientOn .siteLogoImg--dark {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding-bottom: max(28px, env(safe-area-inset-bottom));
+  padding-bottom: 16px;
   scrollbar-width: none;
 }
 
