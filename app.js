@@ -292,29 +292,6 @@
     }
   }
 
-  /** マウスなど細かいポインタがある（典型的な PC）。 */
-  function hasPrimaryFinePointer() {
-    try {
-      return window.matchMedia("(pointer: fine)").matches;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * iPhone 等（主にタッチ）では fetch 後の読み上げが無音になりやすいので「タップして開始」を出す。
-   * マウス操作の PC では従来どおりゲートなしで即開始する。
-   */
-  function needsAudioStartGate() {
-    if (hasPrimaryFinePointer()) return false;
-    try {
-      if (window.matchMedia("(pointer: coarse)").matches) return true;
-    } catch {
-      // ignore
-    }
-    return false;
-  }
-
   function h(tag, attrs = {}, children = []) {
     const el = document.createElement(tag);
     for (const [k, v] of Object.entries(attrs || {})) {
@@ -362,17 +339,73 @@
     return sharedAudioCtx;
   }
 
+  /** tuggable-light-bulb 元スクリプトと同じ MP3。 */
+  const DESC_BULB_CLICK_MP3 = "https://assets.codepen.io/605876/click.mp3";
+  let bulbClickAudio = null;
+
   let mediaPlaybackUnlocked = false;
 
-  function resumeAudioContextIfNeeded() {
+  /**
+   * iOS Safari は、ユーザー操作の**同期コールスタック内**でのみ
+   * AudioContext.resume / speechSynthesis.speak / Audio.play を許可する。
+   * .then() や await 後では「ジェスチャー外」と見なされ無音になる。
+   * そのためこの関数は完全に同期で実行する。
+   */
+  function ensureMediaPlaybackUnlocked() {
     const ctx = getAudioContext();
-    if (!ctx) return Promise.resolve();
-    if (ctx.state === "suspended") return ctx.resume();
-    return Promise.resolve();
-  }
+    if (ctx && ctx.state === "suspended") {
+      void ctx.resume();
+    }
 
-  function applyMediaUnlockOnce() {
-    if (mediaPlaybackUnlocked) {
+    if (!bulbClickAudio) {
+      try {
+        bulbClickAudio = new Audio(DESC_BULB_CLICK_MP3);
+        bulbClickAudio.preload = "auto";
+        bulbClickAudio.volume = 0;
+        void bulbClickAudio.play().then(() => {
+          bulbClickAudio.pause();
+          bulbClickAudio.currentTime = 0;
+          bulbClickAudio.volume = 1;
+        }).catch(() => {});
+      } catch {
+        // ignore
+      }
+    }
+
+    if (!mediaPlaybackUnlocked) {
+      mediaPlaybackUnlocked = true;
+      if (ctx) {
+        try {
+          const t0 = ctx.currentTime;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = 660;
+          gain.gain.setValueAtTime(0.0001, t0);
+          gain.gain.exponentialRampToValueAtTime(0.00001, t0 + 0.02);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(t0);
+          osc.stop(t0 + 0.02);
+        } catch {
+          // ignore
+        }
+      }
+      try {
+        if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
+          speechSynthesis.cancel();
+          speechSynthesis.resume();
+          void speechSynthesis.getVoices();
+          const u = new SpeechSynthesisUtterance("\u3000");
+          u.lang = "ja-JP";
+          u.volume = 0.01;
+          u.rate = 2;
+          speechSynthesis.speak(u);
+        }
+      } catch {
+        // ignore
+      }
+    } else {
       try {
         if (typeof speechSynthesis !== "undefined" && speechSynthesis && speechSynthesis.paused) {
           speechSynthesis.resume();
@@ -380,98 +413,48 @@
       } catch {
         // ignore
       }
-      return;
-    }
-    mediaPlaybackUnlocked = true;
-    const ctx = getAudioContext();
-    if (ctx) {
-      try {
-        const t0 = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.value = 660;
-        gain.gain.setValueAtTime(0.0001, t0);
-        gain.gain.exponentialRampToValueAtTime(0.00001, t0 + 0.02);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(t0);
-        osc.stop(t0 + 0.02);
-      } catch {
-        // ignore
-      }
-    }
-    try {
-      if (typeof speechSynthesis !== "undefined" && speechSynthesis) {
-        speechSynthesis.cancel();
-        speechSynthesis.resume();
-        void speechSynthesis.getVoices();
-        const u = new SpeechSynthesisUtterance("\u3000");
-        u.lang = "ja-JP";
-        u.volume = 0.03;
-        u.rate = 1.5;
-        speechSynthesis.speak(u);
-      }
-    } catch {
-      // ignore
     }
   }
 
-  /**
-   * iOS / Safari: Web Audio は resume を待ってから鳴らす。読み上げも同じチェーンで有効化する。
-   * fetch 後にだけ speak すると無音になることがあるため、音声モードでは別途「タップして開始」も使う。
-   */
-  function ensureMediaPlaybackUnlocked() {
-    void resumeAudioContextIfNeeded().then(() => {
-      applyMediaUnlockOnce();
-    });
-  }
-
-  /** tuggable-light-bulb 元スクリプトと同じ MP3（PC はこれを優先）。 */
-  const DESC_BULB_CLICK_MP3 = "https://assets.codepen.io/605876/click.mp3";
-
-  function playBulbToggleClickSoundWebAudio() {
-    void resumeAudioContextIfNeeded().then(() => {
-      applyMediaUnlockOnce();
-      const ctx = getAudioContext();
-      if (!ctx) return;
-      try {
-        const t0 = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sine";
-        osc.frequency.value = 1040;
-        gain.gain.setValueAtTime(0.0001, t0);
-        gain.gain.linearRampToValueAtTime(0.1, t0 + 0.008);
-        gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(t0);
-        osc.stop(t0 + 0.06);
-      } catch {
-        // ignore
-      }
-    });
-  }
-
-  /** PC は元の click.mp3、タッチ端末は iOS 向けに Web Audio 合成音。 */
+  /** 電球トグル用クリック音。click.mp3 を優先し、失敗時は Web Audio で合成。 */
   function playBulbToggleClickSound() {
-    if (hasPrimaryFinePointer()) {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") void ctx.resume();
+
+    if (bulbClickAudio) {
       try {
-        if (!window.__descBulbClickAudio) {
-          window.__descBulbClickAudio = new Audio(DESC_BULB_CLICK_MP3);
-        }
-        const a = window.__descBulbClickAudio;
-        a.currentTime = 0;
-        void a.play().catch(() => {
-          playBulbToggleClickSoundWebAudio();
+        bulbClickAudio.volume = 1;
+        bulbClickAudio.currentTime = 0;
+        void bulbClickAudio.play().catch(() => {
+          playBulbClickWebAudio(ctx);
         });
         return;
       } catch {
         // fall through
       }
     }
-    playBulbToggleClickSoundWebAudio();
+    playBulbClickWebAudio(ctx);
+  }
+
+  function playBulbClickWebAudio(ctx) {
+    if (!ctx) ctx = getAudioContext();
+    if (!ctx) return;
+    try {
+      const t0 = ctx.currentTime;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 1040;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(0.1, t0 + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.055);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.06);
+    } catch {
+      // ignore
+    }
   }
 
   function attachMediaUnlockOnFirstInteraction() {
@@ -910,9 +893,7 @@
         errBox.hidden = true;
         errBox.textContent = "";
         const mode = modeCard.checked ? "card" : "audio";
-        if (mode === "audio") {
-          ensureMediaPlaybackUnlocked();
-        }
+        ensureMediaPlaybackUnlocked();
         savePlayMode(mode);
         const prevLabel = btnStart.textContent;
         btnStart.disabled = true;
@@ -1013,11 +994,9 @@
       clearTimeouts();
       void swapWithFade(() => {
       clearNode(area);
-      const useAudioStartGate = needsAudioStartGate();
       area.className =
         "gameArea" +
-        (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud") +
-        (useAudioStartGate ? " gameArea--audioPending" : "");
+        (!getSavedDescription() ? " gameArea--recallHud" : " gameArea--descHud");
 
       const audioExtractMap =
         prefetchedExtractMap && typeof prefetchedExtractMap === "object" ? prefetchedExtractMap : {};
@@ -1029,21 +1008,8 @@
       area.appendChild(status);
       area.appendChild(progress.el);
 
-      let audioStartGate = null;
-      if (useAudioStartGate) {
-        audioStartGate = h("div", { class: "audioStartGate", tabIndex: 0, role: "button" }, [
-          h("p", { class: "audioStartGateTitle", text: "タップして開始" }),
-          h("p", {
-            class: "audioStartGateHint",
-            text: "単語の取得が終わったあとで読み上げるため、iPhone / Safari ではこの画面を一度タップしてください。",
-          }),
-        ]);
-        area.appendChild(audioStartGate);
-      }
-
       let i = 0;
       let sessionVoice = null;
-      let roundBegun = false;
 
       async function next() {
         if (i >= seq.length) {
@@ -1067,43 +1033,9 @@
         );
       }
 
-      function beginAudioRound() {
-        if (roundBegun) return;
-        roundBegun = true;
-        ensureMediaPlaybackUnlocked();
-        sessionVoice = pickBestJapaneseVoice();
-        void next();
-      }
-
-      let audioGateUsed = false;
-      function dismissAudioStartGate() {
-        if (audioGateUsed) return;
-        audioGateUsed = true;
-        if (audioStartGate && audioStartGate.parentNode) {
-          audioStartGate.remove();
-        }
-        area.classList.remove("gameArea--audioPending");
-        ensureMediaPlaybackUnlocked();
-        beginAudioRound();
-      }
-
-      function onAudioGateActivate(e) {
-        e.preventDefault();
-        dismissAudioStartGate();
-      }
-
-      if (useAudioStartGate && audioStartGate) {
-        audioStartGate.addEventListener("pointerdown", onAudioGateActivate, { passive: false });
-        audioStartGate.addEventListener("click", onAudioGateActivate);
-        audioStartGate.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            dismissAudioStartGate();
-          }
-        });
-      } else {
-        beginAudioRound();
-      }
+      ensureMediaPlaybackUnlocked();
+      sessionVoice = pickBestJapaneseVoice();
+      void next();
       });
     }
 
