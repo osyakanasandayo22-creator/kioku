@@ -1,5 +1,5 @@
 /* Service Worker: network-first with offline fallback */
-const CACHE_NAME = "wordorder-shell-v13";
+const CACHE_NAME = "wordorder-shell-v14";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -10,6 +10,7 @@ const APP_SHELL = [
   "./app.js",
   "./manifest.webmanifest",
   "./icon.svg",
+  "./images/favicon-48.png",
   "./images/icon-192.png",
   "./images/icon-512.png",
   "./images/ロゴ白.png",

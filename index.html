@@ -12,10 +12,10 @@
       rel="stylesheet"
     />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" type="image/png" sizes="48x48" href="./images/favicon-48.png" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./images/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="./images/icon-512.png" />
-    <link rel="icon" href="./icon.svg" type="image/svg+xml" sizes="any" />
+    <!-- タブ用: SVG の rel=icon は Chrome 等で PNG より優先されるため head では使わない（manifest に残す） -->
+    <link rel="icon" type="image/png" sizes="48x48" href="./images/favicon-48.png?v=1" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./images/icon-192.png?v=1" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./images/icon-512.png?v=1" />
     <link rel="apple-touch-icon" href="./images/icon-192.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
