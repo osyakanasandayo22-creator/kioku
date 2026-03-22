@@ -10,7 +10,25 @@
   function loadClickSound() {
     const a = new Audio("https://assets.codepen.io/605876/click.mp3");
     a.volume = 0.35;
+    try {
+      a.preload = "auto";
+      a.load();
+    } catch {
+      // ignore
+    }
     return a;
+  }
+
+  /** モーフSVGはモバイルで重いので、軽い演出に切り替える */
+  function shouldUseLiteCord() {
+    try {
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+      if (window.matchMedia("(pointer: coarse)").matches) return true;
+      if (window.matchMedia("(max-width: 768px)").matches) return true;
+    } catch {
+      // ignore
+    }
+    return false;
   }
 
   /**
@@ -74,6 +92,7 @@
         const ENDX = DUMMY_CORD.getAttribute("x2");
         const ENDY = DUMMY_CORD.getAttribute("y2");
         const PROXY = document.createElement("div");
+        const useLiteCord = shouldUseLiteCord();
 
         const RESET = () => {
           set(PROXY, { x: ENDX, y: ENDY });
@@ -97,19 +116,8 @@
         CORD_TL = timeline({
           paused: true,
           onStart: () => {
-            STATE.ON = !STATE.ON;
-            set(wrapEl, { "--on": STATE.ON ? 1 : 0 });
-            try {
-              onChange(STATE.ON);
-            } catch {
-              // ignore
-            }
             set([DUMMY, HIT], { display: "none" });
             set(CORDS[0], { display: "block" });
-            if (clickSound) {
-              clickSound.currentTime = 0;
-              clickSound.play().catch(() => {});
-            }
           },
           onComplete: () => {
             set([DUMMY, HIT], { display: "block" });
@@ -129,6 +137,37 @@
           );
         }
 
+        function playToggleFeedback() {
+          STATE.ON = !STATE.ON;
+          set(wrapEl, { "--on": STATE.ON ? 1 : 0 });
+          try {
+            onChange(STATE.ON);
+          } catch {
+            // ignore
+          }
+          if (clickSound) {
+            try {
+              clickSound.currentTime = 0;
+            } catch {
+              // ignore
+            }
+            clickSound.play().catch(() => {});
+          }
+        }
+
+        function runLiteToggleAnim() {
+          g.killTweensOf(host);
+          set(host, { transformOrigin: "50% 35%" });
+          to(host, {
+            scale: 0.97,
+            duration: 0.07,
+            ease: "power2.out",
+            yoyo: true,
+            repeat: 1,
+            force3D: true,
+          });
+        }
+
         dragArr = Draggable.create(PROXY, {
           trigger: HIT,
           type: "x,y",
@@ -145,21 +184,36 @@
             const DISTX = Math.abs(e.x - startX);
             const DISTY = Math.abs(e.y - startY);
             const TRAVELLED = Math.sqrt(DISTX * DISTX + DISTY * DISTY);
-            to(DUMMY_CORD, {
-              attr: { x2: ENDX, y2: ENDY },
-              duration: CORD_DURATION,
-              onComplete: () => {
-                if (TRAVELLED > 50) {
-                  CORD_TL.restart();
-                } else {
-                  RESET();
-                }
-              },
-            });
+            if (TRAVELLED > 50) {
+              playToggleFeedback();
+              to(DUMMY_CORD, {
+                attr: { x2: ENDX, y2: ENDY },
+                duration: CORD_DURATION,
+                onComplete: () => {
+                  if (useLiteCord) {
+                    runLiteToggleAnim();
+                    RESET();
+                  } else {
+                    CORD_TL.restart();
+                  }
+                },
+              });
+            } else {
+              to(DUMMY_CORD, {
+                attr: { x2: ENDX, y2: ENDY },
+                duration: CORD_DURATION,
+                onComplete: () => RESET(),
+              });
+            }
           },
         });
 
         function destroy() {
+          try {
+            g.killTweensOf(host);
+          } catch {
+            // ignore
+          }
           try {
             if (dragArr && dragArr[0]) dragArr[0].kill();
           } catch {
