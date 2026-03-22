@@ -3,11 +3,12 @@
 /* ページ背景と一体（枠・別色なし）。電球 SVG の色だけ --on で制御 */
 .descToggleWrap {
   --on: 0;
-  --cord: hsl(0, 0%, calc((60 - (var(--on) * 50)) * 1%));
-  --stroke: hsl(0, 0%, calc((60 - (var(--on) * 50)) * 1%));
-  --shine: hsla(0, 0%, 100%, calc(0.75 - (var(--on) * 0.5)));
-  --cap: hsl(0, 0%, calc((40 + (var(--on) * 30)) * 1%));
-  --filament: hsl(45, calc(var(--on) * 80%), calc((25 + (var(--on) * 75)) * 1%));
+  /* 消灯: 煤けた紐 / 点灯: 古い白熱の芯（琥珀寄り） */
+  --cord: hsl(28, calc(12% + var(--on) * 18%), calc((38 - var(--on) * 22) * 1%));
+  --stroke: hsl(35, calc(var(--on) * 25%), calc((42 - var(--on) * 18) * 1%));
+  --shine: hsla(40, calc(var(--on) * 40%), 88%, calc(0.55 - (var(--on) * 0.35)));
+  --cap: hsl(32, calc(var(--on) * 15%), calc((34 + var(--on) * 22) * 1%));
+  --filament: hsl(32, calc(var(--on) * 85%), calc((28 + var(--on) * 58) * 1%));
   margin: 0 0 14px;
   padding: 4px 0 0;
   border: none;
@@ -26,7 +27,8 @@
   font-weight: 700;
   font-size: 15px;
   letter-spacing: 0.08em;
-  color: var(--text);
+  color: #e4dcd2;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
 }
 
 .descToggleHint {
@@ -34,8 +36,19 @@
   margin: 6px 0 0;
   font-size: 12px;
   font-weight: 600;
-  color: var(--muted);
+  color: #9c9288;
   letter-spacing: 0.04em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+body.descAmbientOn .descToggleTitle {
+  color: #f2ebe2;
+  text-shadow: 0 1px 5px rgba(40, 28, 12, 0.45);
+}
+
+body.descAmbientOn .descToggleHint {
+  color: #b5a99a;
+  text-shadow: 0 1px 4px rgba(30, 22, 12, 0.35);
 }
 
 .descToggleBulbHost {
@@ -96,7 +109,8 @@
 
 .descToggleWrap .bulb__bulb {
   stroke: var(--stroke);
-  fill: hsla(calc(180 - (95 * var(--on))), 80%, 80%, calc(0.1 + (0.4 * var(--on))));
+  /* 点灯時はガラスにわずかな琥珀色（裸電球） */
+  fill: hsla(calc(200 - 162 * var(--on)), calc(45% + 35% * var(--on)), calc(76% - 8% * var(--on)), calc(0.09 + 0.38 * var(--on)));
 }
 
 .descToggleWrap .bulb__cap {
@@ -119,7 +133,8 @@
   padding: 8px 0 4px;
   font-size: 14px;
   font-weight: 700;
-  color: var(--muted);
+  color: #c4bbb0;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
 .descToggleFallback input {

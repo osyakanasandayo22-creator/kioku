@@ -1,16 +1,17 @@
 :root {
-  --text: #3d3835;
-  --muted: #7a726d;
-  --line: rgba(90, 82, 76, 0.12);
-  --accent: #9a8f88;
-  --accent-deep: #7d726c;
-  --surface: rgba(255, 252, 250, 0.72);
-  --surface-strong: rgba(255, 255, 255, 0.88);
-  --shadow-soft: 0 8px 32px rgba(45, 40, 36, 0.08), 0 2px 8px rgba(45, 40, 36, 0.04);
-  --shadow-btn: 0 4px 20px rgba(45, 40, 36, 0.12);
+  /* 薄暗い地下室でも読めるようやや暖みのある墨色 */
+  --text: #2e2924;
+  --muted: #6b635c;
+  --line: rgba(45, 38, 32, 0.14);
+  --accent: #8a7d72;
+  --accent-deep: #6b5f54;
+  --surface: rgba(248, 242, 232, 0.78);
+  --surface-strong: rgba(255, 252, 246, 0.9);
+  --shadow-soft: 0 8px 28px rgba(20, 15, 10, 0.18), 0 2px 8px rgba(25, 18, 12, 0.1);
+  --shadow-btn: 0 4px 18px rgba(30, 22, 16, 0.22);
   --radius-pill: 9999px;
   --radius-card: 28px;
-  --focus: 0 0 0 3px rgba(154, 143, 136, 0.35);
+  --focus: 0 0 0 3px rgba(120, 100, 80, 0.35);
 }
 
 *,
@@ -24,6 +25,10 @@ body {
   height: 100%;
 }
 
+html {
+  background-color: #14110e;
+}
+
 body {
   margin: 0;
   position: relative;
@@ -32,34 +37,35 @@ body {
   -webkit-font-smoothing: antialiased;
   line-height: 1.55;
   background-attachment: fixed;
-  /* 説明OFF: 落ち着いた薄暗さ（電球が消えた部屋） */
-  background-color: #cbc4bc;
+  /* 説明OFF: 古い居酒屋の地下室 — 煤・木・湿気の重さ */
+  background-color: #14110e;
   background-image:
-    radial-gradient(ellipse 110% 75% at 12% 16%, rgba(255, 255, 255, 0.2) 0%, transparent 58%),
-    radial-gradient(ellipse 88% 62% at 90% 10%, rgba(255, 255, 255, 0.08) 0%, transparent 52%),
-    radial-gradient(ellipse 72% 48% at 72% 88%, rgba(100, 95, 90, 0.12) 0%, transparent 48%),
-    linear-gradient(168deg, #cfc8c0 0%, #c4bcb4 38%, #bab3ab 62%, #b0a9a2 100%);
-  transition: background-color 0.85s ease;
-}
-
-/* 電球ON: 元の明るさへ戻し、上から暖かい光が差し込む */
-body.descAmbientOn {
-  background-color: #e8e4df;
-  background-image:
-    radial-gradient(ellipse 120% 80% at 10% 20%, rgba(255, 255, 255, 0.65) 0%, transparent 55%),
-    radial-gradient(ellipse 90% 70% at 90% 10%, rgba(255, 255, 255, 0.4) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 50% at 70% 85%, rgba(180, 175, 168, 0.25) 0%, transparent 45%),
+    radial-gradient(ellipse 130% 85% at 50% 115%, rgba(0, 0, 0, 0.55) 0%, transparent 58%),
+    radial-gradient(ellipse 70% 55% at 8% 92%, rgba(25, 20, 14, 0.65) 0%, transparent 48%),
+    radial-gradient(ellipse 65% 50% at 95% 88%, rgba(20, 16, 12, 0.55) 0%, transparent 46%),
+    radial-gradient(ellipse 90% 50% at 40% 8%, rgba(55, 48, 38, 0.25) 0%, transparent 42%),
     linear-gradient(
-      118deg,
-      rgba(255, 255, 255, 0.15) 0%,
-      transparent 25%,
-      transparent 40%,
-      rgba(200, 195, 188, 0.12) 52%,
-      transparent 65%
-    ),
-    linear-gradient(168deg, #f2efeb 0%, #e5e1dc 38%, #ebe7e2 62%, #ded9d3 100%);
+      168deg,
+      #1f1a15 0%,
+      #1a1612 28%,
+      #15120f 55%,
+      #100e0b 100%
+    );
+  transition: background-color 1s ease;
 }
 
+/* 電球ON: 裸電球ひとつで場が浮かび上がる（まだ外は地下室の色味） */
+body.descAmbientOn {
+  background-color: #2a241c;
+  background-image:
+    radial-gradient(ellipse 95% 55% at 48% 6%, rgba(90, 72, 48, 0.35) 0%, transparent 52%),
+    radial-gradient(ellipse 100% 70% at 50% 108%, rgba(15, 12, 8, 0.4) 0%, transparent 55%),
+    radial-gradient(ellipse 75% 60% at 5% 75%, rgba(35, 28, 20, 0.45) 0%, transparent 48%),
+    radial-gradient(ellipse 75% 60% at 96% 70%, rgba(32, 26, 18, 0.4) 0%, transparent 48%),
+    linear-gradient(165deg, #3d3428 0%, #2e2820 38%, #252019 72%, #1c1813 100%);
+}
+
+/* 裸電球の光 — 広め・琥珀・端まで柔らかく減衰（白っぽさは抑えめ） */
 body::before {
   content: "";
   position: fixed;
@@ -67,16 +73,34 @@ body::before {
   z-index: 0;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.95s ease;
+  transition: opacity 1.1s ease;
   background:
-    radial-gradient(ellipse 125% 85% at 50% -8%, rgba(255, 228, 198, 0.55) 0%, rgba(255, 238, 218, 0.28) 42%, transparent 68%),
-    radial-gradient(ellipse 95% 70% at 78% 22%, rgba(255, 248, 235, 0.38) 0%, transparent 58%),
-    radial-gradient(ellipse 75% 55% at 22% 15%, rgba(255, 255, 255, 0.35) 0%, transparent 52%),
-    linear-gradient(185deg, rgba(255, 245, 228, 0.2) 0%, transparent 42%);
+    radial-gradient(ellipse 175% 110% at 50% -18%, rgba(255, 175, 95, 0.38) 0%, rgba(240, 155, 75, 0.16) 38%, transparent 68%),
+    radial-gradient(ellipse 130% 85% at 50% 8%, rgba(255, 200, 130, 0.22) 0%, rgba(220, 160, 95, 0.08) 45%, transparent 72%),
+    radial-gradient(ellipse 120% 90% at 8% 22%, rgba(255, 190, 120, 0.1) 0%, transparent 52%),
+    radial-gradient(ellipse 120% 90% at 92% 24%, rgba(235, 170, 100, 0.09) 0%, transparent 52%),
+    radial-gradient(ellipse 100% 55% at 50% 102%, rgba(180, 120, 55, 0.12) 0%, transparent 58%),
+    linear-gradient(195deg, rgba(255, 210, 150, 0.06) 0%, transparent 48%);
 }
 
 body.descAmbientOn::before {
   opacity: 1;
+}
+
+/* 四隅の漆黒 — 消灯時は深く、点灯時は灯りでわずかに抜ける */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 95% 92% at 50% 48%, transparent 22%, rgba(8, 5, 3, 0.72) 100%);
+  opacity: 0.88;
+  transition: opacity 1.05s ease;
+}
+
+body.descAmbientOn::after {
+  opacity: 0.42;
 }
 
 .container {
@@ -417,6 +441,104 @@ body.descAmbientOn::before {
   display: grid;
   gap: 12px;
   margin: 0 0 20px;
+}
+
+.answerModeExplainer {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(35, 30, 24, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.answerModeExplainerLead {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #e8dfd4;
+}
+
+.answerModeExplainerBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #c9bfb4;
+}
+
+.answerGrid--description {
+  gap: 16px;
+}
+
+.answerPhaseLead {
+  margin: 0 0 4px;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.answerDescBlock {
+  padding: 14px 16px 16px;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.answerDescBlockHead {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.answerDescWord {
+  font-size: clamp(20px, 5vw, 28px);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text);
+}
+
+.answerTextarea {
+  display: block;
+  width: 100%;
+  min-height: 7.5rem;
+  resize: vertical;
+  padding: 14px 18px;
+  font-size: 15px;
+  line-height: 1.55;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  font-family: inherit;
+  color: var(--text);
+  box-shadow: inset 0 2px 6px rgba(45, 40, 36, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.answerTextarea::placeholder {
+  color: rgba(122, 114, 109, 0.45);
+}
+
+.answerTextarea:focus {
+  outline: none;
+  border-color: rgba(154, 143, 136, 0.45);
+  box-shadow: var(--focus), inset 0 2px 6px rgba(45, 40, 36, 0.04);
+}
+
+.answerVal--multiline {
+  white-space: pre-wrap;
+  word-break: break-word;
+  text-align: left;
+  line-height: 1.45;
+  max-height: 6rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
 }
 
 .answerRow {
@@ -840,6 +962,7 @@ button.answerResultCard:focus-visible {
   flex: 1;
   min-width: 0;
   word-break: break-word;
+  white-space: pre-wrap;
   font-weight: 700;
 }
 

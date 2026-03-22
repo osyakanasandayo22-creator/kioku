@@ -2,7 +2,8 @@
   "use strict";
 
   const STORAGE_KEY = "wordOrderApp.v1";
-  const WORD_COUNT = 10;
+  const WORD_COUNT_RECALL = 10;
+  const WORD_COUNT_DESCRIPTION = 5;
   const PAUSE_AFTER_SPEAK_MS = 1000;
   /** 出題に使う記事タイトルの最大文字数（これより長いものは捨てる） */
   const MAX_TITLE_LENGTH = 8;
@@ -119,17 +120,25 @@
   }
 
   const POINTS_PER_QUESTION = 20;
-  const MAX_TOTAL_SCORE = WORD_COUNT * POINTS_PER_QUESTION;
 
-  async function fetchGeminiScores(correctSeq, userAnswers) {
+  /** 説明ONのときは出題数が少なめ（記憶負荷と採点のため） */
+  function getSessionWordCount() {
+    return getSavedDescription() ? WORD_COUNT_DESCRIPTION : WORD_COUNT_RECALL;
+  }
+
+  async function fetchGeminiScores(correctSeq, userAnswers, opts = {}) {
+    const gradingMode = opts.gradingMode === "description" ? "description" : "recall";
+    const references = Array.isArray(opts.references) ? opts.references : [];
     const res = await fetch("/api/grade", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        gradingMode,
         items: correctSeq.map((answer, index) => ({
           index,
           answer,
           response: userAnswers[index] ?? "",
+          reference: references[index] ?? "",
         })),
       }),
     });
@@ -522,7 +531,7 @@
     document.body.classList.toggle("descAmbientOn", on);
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) {
-      meta.setAttribute("content", on ? "#ebe8e4" : "#bfb6ab");
+      meta.setAttribute("content", on ? "#3d3428" : "#14110e");
     }
   }
 
@@ -603,7 +612,7 @@
         btnStart.disabled = true;
         btnStart.textContent = "取得中…";
         try {
-          const titles = await fetchShortRandomWikipediaTitles(WORD_COUNT);
+          const titles = await fetchShortRandomWikipediaTitles(getSessionWordCount());
           seq = shuffle(titles);
           let cardExtractMap = null;
           if (mode === "card" && getSavedDescription()) {
@@ -672,6 +681,17 @@
 
       area.appendChild(descWrap);
       area.appendChild(modeGrid);
+      if (getSavedDescription()) {
+        area.appendChild(
+          h("div", { class: "answerModeExplainer" }, [
+            h("p", { class: "answerModeExplainerLead", text: "説明モード（5問）" }),
+            h("p", {
+              class: "answerModeExplainerBody",
+              text: "出題は5問です。各語の意味を覚え、回答では上から順に並んだ語ごとに、その下の欄へその語についての説明を書きます。AIは Wikipedia の冒頭を参考に、説明の精度で採点します。",
+            }),
+          ])
+        );
+      }
       area.appendChild(errBox);
       area.appendChild(h("div", { class: "formRow startBtnRow" }, [btnStart]));
     }
@@ -683,7 +703,7 @@
       clearNode(area);
       area.className = "gameArea";
 
-      const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: "0/10" })]);
+      const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: `0/${seq.length}` })]);
       const progress = makeProgress();
       progress.setPct(0);
 
@@ -701,7 +721,7 @@
           renderAnswerPhase();
           return;
         }
-        status.firstChild.textContent = `${i + 1}/10`;
+        status.firstChild.textContent = `${i + 1}/${seq.length}`;
         progress.setPct((i / seq.length) * 100);
         if (i > 0) await playBetweenWordsChime();
         const w = seq[i];
@@ -750,7 +770,7 @@
       let i = 0;
       const showDesc = extractMap != null && typeof extractMap === "object";
 
-      const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: "1/10" })]);
+      const status = h("div", { class: "helpRow" }, [h("span", { class: "counter", text: `1/${seq.length}` })]);
       const progress = makeProgress();
       progress.setPct(0);
 
@@ -761,7 +781,7 @@
       const btnNext = h("button", { class: "primaryBtn nextWordBtn", type: "button", text: "次 →" });
 
       function refreshCard() {
-        status.firstChild.textContent = `${i + 1}/10`;
+        status.firstChild.textContent = `${i + 1}/${seq.length}`;
         progress.setPct((i / seq.length) * 100);
         const title = seq[i] || "—";
         clearNode(card);
@@ -805,22 +825,53 @@
       area.className = "gameArea";
 
       const inputs = [];
-      const grid = h("div", { class: "answerGrid" });
+      const descMode = getSavedDescription();
+      const grid = h("div", {
+        class: descMode ? "answerGrid answerGrid--description" : "answerGrid",
+      });
 
-      for (let i = 0; i < seq.length; i++) {
-        const inp = h("input", {
-          class: "input answerInput",
-          type: "text",
-          autocomplete: "off",
-          autocapitalize: "off",
-        });
-        inp.setAttribute("aria-label", String(i + 1));
-        const row = h("label", { class: "answerRow" }, [
-          h("span", { class: "answerIdx", text: `${i + 1}.` }),
-          inp,
-        ]);
-        grid.appendChild(row);
-        inputs.push(inp);
+      if (descMode) {
+        grid.appendChild(
+          h("p", {
+            class: "answerPhaseLead",
+            text: "出題と同じ順で語が並んでいます。それぞれの下の説明欄に、その語が何を指すか・どんな意味かを書いてください。",
+          })
+        );
+        for (let i = 0; i < seq.length; i++) {
+          const block = h("div", { class: "answerDescBlock" });
+          block.appendChild(
+            h("div", { class: "answerDescBlockHead" }, [
+              h("span", { class: "answerIdx", text: `${i + 1}.` }),
+              h("span", { class: "answerDescWord", text: seq[i] || "—" }),
+            ])
+          );
+          const ta = h("textarea", {
+            class: "input answerTextarea",
+            rows: 4,
+            placeholder: "この語について説明を書く…",
+            autocomplete: "off",
+          });
+          ta.setAttribute("aria-label", `第${i + 1}問の説明`);
+          block.appendChild(ta);
+          inputs.push(ta);
+          grid.appendChild(block);
+        }
+      } else {
+        for (let i = 0; i < seq.length; i++) {
+          const inp = h("input", {
+            class: "input answerInput",
+            type: "text",
+            autocomplete: "off",
+            autocapitalize: "off",
+          });
+          inp.setAttribute("aria-label", String(i + 1));
+          const row = h("label", { class: "answerRow" }, [
+            h("span", { class: "answerIdx", text: `${i + 1}.` }),
+            inp,
+          ]);
+          grid.appendChild(row);
+          inputs.push(inp);
+        }
       }
 
       const btnCheck = h("button", { class: "primaryBtn", type: "button", text: "OK" });
@@ -829,12 +880,19 @@
       async function renderResultView(savedUserAnswers) {
         if (!savedUserAnswers) btnCheck.disabled = true;
         const user = savedUserAnswers || inputs.map((el) => normalizeAnswer(el.value));
+        const descMode = getSavedDescription();
+        const maxTotal = seq.length * POINTS_PER_QUESTION;
 
         clearNode(area);
         area.className = "gameArea gameArea--result";
         area.appendChild(
           h("div", { class: "resultLoading" }, [
-            h("p", { class: "resultLoadingText", text: "AIが採点し、説明を取得しています…" }),
+            h("p", {
+              class: "resultLoadingText",
+              text: descMode
+                ? "AIが説明の内容を確認して採点しています…"
+                : "AIが採点し、説明を取得しています…",
+            }),
           ])
         );
 
@@ -843,11 +901,12 @@
         let totalScore = 0;
 
         try {
-          const [gradePayload, wikiEx] = await Promise.all([
-            fetchGeminiScores(seq, user),
-            fetchWikipediaExtracts(seq).catch(() => ({})),
-          ]);
-          extractMap = wikiEx && typeof wikiEx === "object" ? wikiEx : {};
+          extractMap = await fetchWikipediaExtracts(seq).catch(() => ({}));
+          if (!extractMap || typeof extractMap !== "object") extractMap = {};
+          const gradePayload = await fetchGeminiScores(seq, user, {
+            gradingMode: descMode ? "description" : "recall",
+            references: seq.map((t) => extractMap[t] || ""),
+          });
           gradeItems = gradePayload.items;
           totalScore =
             typeof gradePayload.totalScore === "number"
@@ -881,7 +940,7 @@
           return;
         }
 
-        const allOk = totalScore >= MAX_TOTAL_SCORE;
+        const allOk = totalScore >= maxTotal;
 
         clearNode(area);
         area.className =
@@ -906,12 +965,17 @@
             : []),
           h("span", {
             class: "resultSummaryScore",
-            text: `${totalScore}点 / ${MAX_TOTAL_SCORE}点`,
+            text: `${totalScore}点 / ${maxTotal}点`,
           }),
           ...(allOk ? [h("span", { class: "resultPerfectBadge", text: "満点！" })] : []),
         ]);
 
-        const tapHint = h("p", { class: "resultTapHint", text: "カードを押すと詳細・説明を表示します" });
+        const tapHint = h("p", {
+          class: "resultTapHint",
+          text: descMode
+            ? "カードを押すと採点コメントと参考説明を表示します"
+            : "カードを押すと詳細・説明を表示します",
+        });
 
         const resultGrid = h("div", { class: "answerGrid answerResultGrid" });
 
@@ -988,16 +1052,21 @@
           panel.appendChild(
             h("div", { class: "resultDetailRows" }, [
               h("div", { class: "resultDetailPair" }, [
-                h("span", { class: "answerLabel", text: "あなた" }),
+                h("span", { class: "answerLabel", text: descMode ? "あなたの説明" : "あなた" }),
                 h("span", { class: "answerVal", text: yourLine }),
               ]),
               h("div", { class: "resultDetailPair" }, [
-                h("span", { class: "answerLabel", text: "正解" }),
+                h("span", { class: "answerLabel", text: descMode ? "お題の語" : "正解" }),
                 h("span", { class: "answerVal", text: seq[j] }),
               ]),
             ])
           );
-          panel.appendChild(h("h3", { class: "resultDetailSubhead", text: "説明" }));
+          panel.appendChild(
+            h("h3", {
+              class: "resultDetailSubhead",
+              text: descMode ? "参考（Wikipedia 冒頭）" : "説明",
+            })
+          );
           panel.appendChild(extractP);
           panel.appendChild(wikiA);
 
@@ -1030,11 +1099,14 @@
           card.appendChild(
             h("div", { class: "answerResultCols" }, [
               h("div", { class: "answerPairLine" }, [
-                h("span", { class: "answerLabel", text: "あなた" }),
-                h("span", { class: "answerVal", text: yourLine }),
+                h("span", { class: "answerLabel", text: descMode ? "あなたの説明" : "あなた" }),
+                h("span", {
+                  class: "answerVal" + (descMode ? " answerVal--multiline" : ""),
+                  text: yourLine,
+                }),
               ]),
               h("div", { class: "answerPairLine answerCorrectPair" }, [
-                h("span", { class: "answerLabel", text: "正解" }),
+                h("span", { class: "answerLabel", text: descMode ? "お題の語" : "正解" }),
                 h("span", { class: "answerVal", text: seq[j] }),
               ]),
               h("div", { class: "answerMetaLine" }, [
