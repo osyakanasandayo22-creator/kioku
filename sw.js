@@ -1,5 +1,5 @@
 /* Service Worker: app shell cache for offline start */
-const CACHE_NAME = "memoryapp-shell-v1";
+const CACHE_NAME = "wordorder-shell-v5";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -31,6 +31,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(fetch(req));
+    return;
+  }
 
   event.respondWith(
     (async () => {
