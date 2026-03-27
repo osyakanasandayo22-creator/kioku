@@ -69,6 +69,68 @@ function parseJsonFromGeminiText(text) {
   }
 }
 
+function normalizeJaText(s) {
+  return String(s || "")
+    .toLowerCase()
+    .replace(/[ 　\t\r\n]+/g, "")
+    .replace(/[.,!?;:()（）「」『』【】［］\[\]'"`’”“・、。]/g, "");
+}
+
+function charSetSimilarity(a, b) {
+  const sa = new Set(normalizeJaText(a).split("").filter(Boolean));
+  const sb = new Set(normalizeJaText(b).split("").filter(Boolean));
+  if (!sa.size && !sb.size) return 1;
+  if (!sa.size || !sb.size) return 0;
+  let inter = 0;
+  for (const c of sa) if (sb.has(c)) inter += 1;
+  return inter / Math.max(sa.size, sb.size);
+}
+
+function heuristicRecallScore(answer, response) {
+  const a = normalizeJaText(answer);
+  const r = normalizeJaText(response);
+  if (!r) return 0;
+  if (a === r) return 10;
+  if (a.includes(r) || r.includes(a)) return 8;
+  const sim = charSetSimilarity(a, r);
+  if (sim >= 0.9) return 9;
+  if (sim >= 0.75) return 7;
+  if (sim >= 0.55) return 5;
+  if (sim >= 0.35) return 3;
+  return 1;
+}
+
+function heuristicDescriptionScore(answer, response, reference) {
+  const r = normalizeJaText(response);
+  if (!r) return 0;
+  const len = r.length;
+  const refSim = charSetSimilarity(reference, response);
+  const ansSim = charSetSimilarity(answer, response);
+  let base = Math.round(refSim * 14 + ansSim * 4);
+  if (len >= 24) base += 2;
+  else if (len < 8) base -= 3;
+  return clampScore(base, 20);
+}
+
+function buildHeuristicResult(items, gradingMode) {
+  const maxScore = gradingMode === "description" ? 20 : 10;
+  const normalized = items.map((src) => {
+    const score =
+      gradingMode === "description"
+        ? heuristicDescriptionScore(src.answer, src.response, src.reference)
+        : heuristicRecallScore(src.answer, src.response);
+    return {
+      index: src.index,
+      score: clampScore(score, maxScore),
+      grade: gradeFromScore(score, maxScore),
+      comment:
+        "Gemini高負荷のため暫定採点（再試行でAI採点に戻ります）",
+    };
+  });
+  const totalScore = normalized.reduce((a, b) => a + b.score, 0);
+  return { items: normalized, totalScore };
+}
+
 module.exports = async (req, res) => {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
 
@@ -219,6 +281,16 @@ ${JSON.stringify({ items: compact }, null, 0)}`;
   }
 
   if (!geminiRes) {
+    const all503OrNetwork =
+      errors.length > 0 &&
+      errors.every((x) => x.status === 503 || x.status === 0);
+    if (all503OrNetwork) {
+      const fallback = buildHeuristicResult(compact, gradingMode);
+      return res.status(200).json({
+        ...fallback,
+        degraded: true,
+      });
+    }
     const tried = errors
       .map((x) => `${x.version}/${x.model}:${x.status} ${x.detail}`)
       .join(" | ")
