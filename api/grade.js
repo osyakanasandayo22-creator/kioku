@@ -3,10 +3,10 @@
  * 環境変数:
  * - GEMINI_API_KEY（推奨）または GOOGLE_API_KEY（どちらか必須）
  * - GEMINI_MODEL（任意、既定 gemini-3.1-flash-lite-preview）
- * - GEMINI_API_VERSION（任意、既定 v1）
+ * - GEMINI_API_VERSION（任意、既定 v1beta）
  */
 const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
-const DEFAULT_API_VERSION = "v1";
+const DEFAULT_API_VERSION = "v1beta";
 
 function clampScore(n, max) {
   const cap = typeof max === "number" && max > 0 ? max : 20;
