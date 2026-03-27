@@ -15,16 +15,16 @@ function uniq(arr) {
 function buildModelCandidates(model) {
   const m = String(model || "").trim();
   if (!m) return [];
-  if (m.endsWith("-preview")) return uniq([m, m.replace(/-preview$/, "")]);
-  return uniq([m, `${m}-preview`]);
+  if (m.endsWith("-preview")) return [m];
+  return [m];
 }
 
 function buildVersionCandidates(version) {
   const v = String(version || "").trim().toLowerCase();
-  if (!v) return [DEFAULT_API_VERSION, "v1"];
-  if (v === "v1beta") return ["v1beta", "v1"];
-  if (v === "v1") return ["v1", "v1beta"];
-  return uniq([v, DEFAULT_API_VERSION, "v1"]);
+  if (!v) return [DEFAULT_API_VERSION];
+  if (v === "v1beta") return ["v1beta"];
+  if (v === "v1") return ["v1"];
+  return uniq([v, DEFAULT_API_VERSION]);
 }
 
 function clampScore(n, max) {
@@ -164,43 +164,56 @@ ${JSON.stringify({ items: compact }, null, 0)}`;
       const url = `https://generativelanguage.googleapis.com/${encodeURIComponent(
         v
       )}/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      try {
-        const candidateRes = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-goog-api-key": apiKey,
-          },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: instruction }] }],
-            generationConfig: {
-              temperature: 0.15,
-              maxOutputTokens: 2048,
-              responseMimeType: "application/json",
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const candidateRes = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
             },
-          }),
-        });
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: instruction }] }],
+              generationConfig: {
+                temperature: 0.15,
+                maxOutputTokens: 2048,
+              },
+            }),
+          });
 
-        if (candidateRes.ok) {
-          geminiRes = candidateRes;
-          break;
+          if (candidateRes.ok) {
+            geminiRes = candidateRes;
+            break;
+          }
+
+          const errText = await candidateRes.text().catch(() => "");
+          errors.push({
+            version: v,
+            model: m,
+            status: candidateRes.status,
+            detail: `try${attempt} ${String(errText || "").slice(0, 150)}`,
+          });
+
+          // Preview は高負荷で 503 が出やすいため短時間リトライ
+          if (candidateRes.status === 503 && attempt < 3) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+            continue;
+          }
+        } catch (e) {
+          errors.push({
+            version: v,
+            model: m,
+            status: 0,
+            detail: `try${attempt} network_error`,
+          });
+          if (attempt < 3) {
+            await new Promise((r) => setTimeout(r, 500 * attempt));
+            continue;
+          }
         }
-
-        const errText = await candidateRes.text().catch(() => "");
-        errors.push({
-          version: v,
-          model: m,
-          status: candidateRes.status,
-          detail: String(errText || "").slice(0, 180),
-        });
-      } catch (e) {
-        errors.push({
-          version: v,
-          model: m,
-          status: 0,
-          detail: "network_error",
-        });
+        break;
       }
+      if (geminiRes) break;
     }
     if (geminiRes) break;
   }
