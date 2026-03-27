@@ -8,6 +8,25 @@
 const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
 const DEFAULT_API_VERSION = "v1beta";
 
+function uniq(arr) {
+  return [...new Set(arr.filter(Boolean))];
+}
+
+function buildModelCandidates(model) {
+  const m = String(model || "").trim();
+  if (!m) return [];
+  if (m.endsWith("-preview")) return uniq([m, m.replace(/-preview$/, "")]);
+  return uniq([m, `${m}-preview`]);
+}
+
+function buildVersionCandidates(version) {
+  const v = String(version || "").trim().toLowerCase();
+  if (!v) return [DEFAULT_API_VERSION, "v1"];
+  if (v === "v1beta") return ["v1beta", "v1"];
+  if (v === "v1") return ["v1", "v1beta"];
+  return uniq([v, DEFAULT_API_VERSION, "v1"]);
+}
+
 function clampScore(n, max) {
   const cap = typeof max === "number" && max > 0 ? max : 20;
   const x = Math.round(Number(n));
@@ -135,38 +154,65 @@ ${JSON.stringify({ items: compact }, null, 0)}`;
 
   const instruction = gradingMode === "description" ? instructionDescription : instructionRecall;
 
-  const url = `https://generativelanguage.googleapis.com/${encodeURIComponent(
-    apiVersion
-  )}/models/${encodeURIComponent(
-    model
-  )}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const modelCandidates = buildModelCandidates(model);
+  const versionCandidates = buildVersionCandidates(apiVersion);
+  const errors = [];
+  let geminiRes = null;
 
-  let geminiRes;
-  try {
-    geminiRes = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: instruction }] }],
-        generationConfig: {
-          temperature: 0.15,
-          maxOutputTokens: 2048,
-          responseMimeType: "application/json",
-        },
-      }),
-    });
-  } catch (e) {
-    return res.status(502).json({ error: "Gemini API への接続に失敗しました" });
+  for (const v of versionCandidates) {
+    for (const m of modelCandidates) {
+      const url = `https://generativelanguage.googleapis.com/${encodeURIComponent(
+        v
+      )}/models/${encodeURIComponent(m)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      try {
+        const candidateRes = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: instruction }] }],
+            generationConfig: {
+              temperature: 0.15,
+              maxOutputTokens: 2048,
+              responseMimeType: "application/json",
+            },
+          }),
+        });
+
+        if (candidateRes.ok) {
+          geminiRes = candidateRes;
+          break;
+        }
+
+        const errText = await candidateRes.text().catch(() => "");
+        errors.push({
+          version: v,
+          model: m,
+          status: candidateRes.status,
+          detail: String(errText || "").slice(0, 180),
+        });
+      } catch (e) {
+        errors.push({
+          version: v,
+          model: m,
+          status: 0,
+          detail: "network_error",
+        });
+      }
+    }
+    if (geminiRes) break;
   }
 
-  if (!geminiRes.ok) {
-    const errText = await geminiRes.text().catch(() => "");
+  if (!geminiRes) {
+    const tried = errors
+      .map((x) => `${x.version}/${x.model}:${x.status} ${x.detail}`)
+      .join(" | ")
+      .slice(0, 600);
     return res.status(502).json({
       error: "Gemini API がエラーを返しました",
-      detail: errText.slice(0, 200),
+      detail: tried || "all attempts failed",
     });
   }
 

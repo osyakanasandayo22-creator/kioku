@@ -233,7 +233,8 @@
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      throw new Error(data.error || "採点に失敗しました");
+      const detail = data && data.detail ? ` / ${String(data.detail)}` : "";
+      throw new Error((data.error || "採点に失敗しました") + detail);
     }
     if (!Array.isArray(data.items) || data.items.length !== correctSeq.length) {
       throw new Error("採点結果が不正です");
