@@ -1,8 +1,12 @@
 /**
  * Gemini による採点（Vercel Serverless）。
- * 環境変数: GEMINI_API_KEY（必須）, GEMINI_MODEL（任意、既定 gemini-3.1-flash-lite-preview）
+ * 環境変数:
+ * - GEMINI_API_KEY（推奨）または GOOGLE_API_KEY（どちらか必須）
+ * - GEMINI_MODEL（任意、既定 gemini-3.1-flash-lite-preview）
+ * - GEMINI_API_VERSION（任意、既定 v1）
  */
 const DEFAULT_MODEL = "gemini-3.1-flash-lite-preview";
+const DEFAULT_API_VERSION = "v1";
 
 function clampScore(n, max) {
   const cap = typeof max === "number" && max > 0 ? max : 20;
@@ -58,12 +62,15 @@ module.exports = async (req, res) => {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!apiKey) {
-    return res.status(500).json({ error: "GEMINI_API_KEY が設定されていません" });
+    return res.status(500).json({
+      error: "GEMINI_API_KEY または GOOGLE_API_KEY が設定されていません",
+    });
   }
 
   const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+  const apiVersion = process.env.GEMINI_API_VERSION || DEFAULT_API_VERSION;
 
   let payload;
   try {
@@ -128,7 +135,9 @@ ${JSON.stringify({ items: compact }, null, 0)}`;
 
   const instruction = gradingMode === "description" ? instructionDescription : instructionRecall;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+  const url = `https://generativelanguage.googleapis.com/${encodeURIComponent(
+    apiVersion
+  )}/models/${encodeURIComponent(
     model
   )}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -136,7 +145,10 @@ ${JSON.stringify({ items: compact }, null, 0)}`;
   try {
     geminiRes = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: instruction }] }],
         generationConfig: {
